@@ -1,0 +1,12 @@
+^100
+#AA #55 and ( and should result in 0x00 ) pop
+#0F #F0 ior ( inclusive or should result in 0xFF ) pop
+#9C #67 xor ( exclusive or should result in 0xFB ) pop
+#03 #40 shi ( shift 0x03 up by 4 bits should result in 0x30 ) pop
+#50 #03 shi ( shift 0x50 down by 3 should result in 0x0A ) pop
+
+#1234 #5678 andS ( and16 should result in 0x1230 ) popS
+#1234 #5678	iorS ( inclusive or should result in 0x567C) popS
+#1234 #5678 xorS ( exclusive or should result in 0x444C ) popS
+#1234 #40 shiS ( shift 0x1234 up by 4 bits should result in 0x2340 ) popS
+#1234 #03 shiS ( shift 0x1234 down by 3 should result in 0x0246 ) popS

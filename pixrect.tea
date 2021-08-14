@@ -1,0 +1,22 @@
+( bus definitions )
+^20 @screen/addr
+^28 @screen/xcoord
+^2A @screen/ycoord
+^2E @screen/color
+
+^100
+#00FA #0096
+#2A bsoS  ( the 2 is the screen device id and the A is the y coord ) 
+#0060
+@colLoop
+	swpS	
+	#0001 addS
+	dupS
+	#28 bsoS	( screen device + x coord )
+	#2 #2E bso  ( #2E is screen device + color )
+	swpS
+	#0002 subS
+	dup
+$@colLoop jnz
+
+

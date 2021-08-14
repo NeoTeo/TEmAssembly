@@ -1,0 +1,93 @@
+^28 @screen/xposition
+^2A @screen/yposition
+^2E @screen/color
+
+^42 @scratch
+
+^50 @char/4
+00 00 08 18 28 3C 08 00
+^58 @char/2
+00 00 38 04 18 20 3C 00 
+
+^100
+
+( a character is 8 x 8 bits )
+@main
+	#2 #0005 #004F #@char/4 $@charline jsr 
+	#2 #0005 #0050 #@char/2 $@charline jsr 
+	brk
+
+@colrowtoxy ( colS row -- x y ) ( all shorts )
+	( screen resolution is 640x480. Each cell in grid is 8x8. So x is 8*col and y is 8*row )
+	#30 shiS swpS
+	#30 shiS
+	jmpSR
+
+@charline ( cidx row col addr -- ) ( b s s s )
+	stsS 				( addr to rstack )  
+	#0 sts				( y counter to rstack )
+	$@colrowtoxy jsr	( convert row and col to xy ) 
+	@cl_yloop			( y coords loop )
+		#0 stsRC rotR rotR stsSRC rotR 
+		addS
+		lda				( load byte at data address )
+		#80 			( start from msbit ) 
+		@cl_xloop
+			stsSC 					( copy byte data and mask to rstack )
+			and	#0 equ 				( check for pixel )
+			$@cl_xloop_skip jnz		( skip if no pixel )	
+			$@dup5 jsr
+			$@dot jsr
+			@cl_xloop_skip
+			swpS #01 add swpS		( swap x and y, increment x, swap back again ) ( this could be done with bytes )
+			stsSR 					( move byte data and mask back from rstack )
+			#01 shi					( shift mask bit down one )	
+			dup #0 grt 
+			$@cl_xloop jnz			( repeat as long as the mask is not zero )
+		popS			( drop unused byte data and mask for this scanline ) 
+		#1 add 
+		swpS
+		#8 sub
+		swpS
+		stsR		( get y count from rstack )
+		#1 add stsC		( increment y count and copy to rstack )
+		#8 lst $@cl_yloop jnz	
+		( stsSR #1 add stsS )	( increment addr ) 
+		( dup #8 and #0 equ $@cl_yloop jnz ) 	( fix this: it's not always on 8! )
+		popRS popR	( pop the addr off the return stack )
+jmpSR
+
+( p: 2 0 2 0 0 40 20 ) ( r: 0 50 )
+
+@dup5 ( abcde -- abcdeabcde )
+	#5 $@pick jsr
+	#5 $@pick jsr
+	#5 $@pick jsr
+	#5 $@pick jsr
+	#5 $@pick jsr
+	
+jmpSR
+
+( picks the value at the given position in the stack and leaves it on top of the stack )
+@pick ( n -- n )
+	stsC
+	@pick_wind
+		dup #0 equ $@pick_unwind jnz
+		#1 sub swp sts swpR $@pick_wind jmp
+
+	@pick_unwind
+		pop ovrR swpR stsSR #1 sub 
+		@pick_unwind_unw
+			dup #0 equ $@pick_end jnz
+			#1 sub swpR stsR swp $@pick_unwind_unw jmp
+
+	@pick_end
+	pop
+	stsR
+jmpSR
+
+@dot ( col x y -- )
+	_@screen/yposition bsoS
+	_@screen/xposition bsoS 
+	_@screen/color bso	 
+jmpSR

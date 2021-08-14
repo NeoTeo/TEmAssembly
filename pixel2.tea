@@ -1,0 +1,16 @@
+^28 @screen/xposition
+^2A @screen/yposition
+^2E @screen/color
+
+^100
+
+
+#2 #0010 #0016 $@dot jsr
+#2 #0012 #0016 $@dot jsr
+brk
+
+@dot ( col x y -- )
+	_@screen/yposition bsoS
+	_@screen/xposition bsoS 
+	_@screen/color bso	 
+	jmpSR

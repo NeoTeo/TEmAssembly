@@ -1,0 +1,26 @@
+^100
+
+@main
+	#1 #2 #3 #4 #5 
+	#3 $@pick jsr
+	brk
+
+
+( picks the value at the given position in the stack and leaves it on top of the stack )
+@pick ( n -- n )
+	stsC
+	@pick_wind
+		dup #0 equ $@pick_unwind jnz
+		#1 sub swp sts swpR $@pick_wind jmp
+
+	@pick_unwind
+		pop ovrR swpR stsSR #1 sub 
+		@pick_unwind_unw
+			dup #0 equ $@pick_end jnz
+			#1 sub swpR stsR swp $@pick_unwind_unw jmp
+
+	@pick_end
+	pop
+	stsR
+jmpSR
+

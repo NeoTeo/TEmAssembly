@@ -1,0 +1,14 @@
+^100
+
+@start
+#42 #0150 sta
+#69 #0150 lda
+pop pop
+( #71 $@teo str )
+#74 $@teo ldr 
+pop pop
+brk
+
+@teo 12 ( hex value stored directly without lit opcode )
+:@start ( raw address of start )
+

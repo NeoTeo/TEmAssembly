@@ -1,0 +1,10 @@
+^100
+
+#2 #0010 #0016 $@dot jmp
+brk
+
+@dot ( col x y -- )
+#2A bsoS ( y position )
+#28 bsoS ( x position )
+#2E bso	 ( color )
+
