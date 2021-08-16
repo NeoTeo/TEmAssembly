@@ -13,8 +13,8 @@
 
 ( a character is 8 x 8 bits )
 @main
-	#2 #0005 #004F #@char/4 $@charline jsr 
-	#2 #0005 #0050 #@char/2 $@charline jsr 
+	#2 #0005 #0010 #@char/4 $@charline jsr 
+	#2 #0005 #0011 #@char/2 $@charline jsr 
 	brk
 
 @colrowtoxy ( colS row -- x y ) ( all shorts )
@@ -39,7 +39,7 @@
 			$@dup5 jsr
 			$@dot jsr
 			@cl_xloop_skip
-			swpS #01 add swpS		( swap x and y, increment x, swap back again ) ( this could be done with bytes )
+			swpS #01 add swpS		( swap x and y, increment x, swap back again ) 
 			stsSR 					( move byte data and mask back from rstack )
 			#01 shi					( shift mask bit down one )	
 			dup #0 grt 
@@ -59,6 +59,7 @@ jmpSR
 
 ( p: 2 0 2 0 0 40 20 ) ( r: 0 50 )
 
+( this is a code smell that i'm juggling too many parms. Refactor! ) 
 @dup5 ( abcde -- abcdeabcde )
 	#5 $@pick jsr
 	#5 $@pick jsr
