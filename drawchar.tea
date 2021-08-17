@@ -1,3 +1,5 @@
+^18 @console/write
+
 ^28 @screen/xposition
 ^2A @screen/yposition
 ^2E @screen/color
@@ -9,13 +11,27 @@
 ^58 @char/2
 00 00 38 04 18 20 3C 00 
 
+^80 @hejverden 48 65 6A 20 76 65 72 64 65 6E 0D
+
 ^100
 
 ( a character is 8 x 8 bits )
 @main
 	#2 #0005 #0010 #@char/4 $@charline jsr 
 	#2 #0005 #0011 #@char/2 $@charline jsr 
+	$@console jsr
 	brk
+
+@console
+	#0 
+	@console_loop
+		dup #@hejverden rot add lda	
+		dup #0 equ $@console_done jnz 
+		_@console/write bso
+		#1 add
+		$@console_loop jmp 
+	@console_done
+jmpSR
 
 @colrowtoxy ( colS row -- x y ) ( all shorts )
 	( screen resolution is 640x480. Each cell in grid is 8x8. So x is 8*col and y is 8*row )
