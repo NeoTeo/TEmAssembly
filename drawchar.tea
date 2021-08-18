@@ -1,4 +1,5 @@
 ^10 @console/vector
+^12 @console/read
 ^18 @console/write
 
 ^28 @screen/xposition
@@ -19,10 +20,24 @@
 ( a character is 8 x 8 bits )
 @main
 	#@convec _@console/vector bsoS ( set the console interrupt vector ) 
-	#2 #0005 #0010 #@char/4 $@charline jsr 
-	#2 #0005 #0011 #@char/2 $@charline jsr 
-	$@console jsr
+	( #2 #0005 #0010 #@char/4 $@charline jsr )
+	( #2 #0005 #0011 #@char/2 $@charline jsr ) 
+	( $@console jsr )
 	brk
+
+( console input interrupt handler )
+@convec
+	#2 #0010 #0020 
+	_@console/read bsi 
+	$@fontoffset jsr #@font/monomini addS
+	$@charline jsr
+	
+jmpSR
+
+@fontoffset ( ascii -- offset )
+	#0 swp	( turn byte into short )
+	#30 shiS		
+jmpSR
 
 @console
 	#0 
@@ -35,9 +50,6 @@
 	@console_done
 jmpSR
 
-@convec
-	#4269 popS
-jmpSR
 
 @colrowtoxy ( colS row -- x y ) ( all shorts )
 	( screen resolution is 640x480. Each cell in grid is 8x8. So x is 8*col and y is 8*row )
@@ -114,3 +126,12 @@ jmpSR
 	_@screen/xposition bsoS 
 	_@screen/color bso	 
 jmpSR
+
+^400 @font/monomini
+( unprintable ascii from 0x400 to 0x41F )
+^500 
+00 00 00 00 00 00 00 00 ( space )
+^590 (0x400 + ascii*8 )
+00 00 38 04 18 20 3C 00 ( 2 )
+^5A0
+00 00 08 18 28 3C 08 00	( 4 )
