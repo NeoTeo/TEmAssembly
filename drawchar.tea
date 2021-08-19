@@ -97,9 +97,10 @@ jmpSR
 		stsR		( get y count from rstack )
 		#1 add stsC		( increment y count and copy to rstack )
 		#8 lst $@cl_yloop jnz	
-		( stsSR #1 add stsS )	( increment addr ) 
-		( dup #8 and #0 equ $@cl_yloop jnz ) 	( fix this: it's not always on 8! )
-		popRS popR	( pop the addr off the return stack )
+		
+		( find way to avoid leaving cruft on stack )
+		popRS popR		( pop the addr off the return stack )
+		popS popS pop	( clear stack of coords and color )
 jmpSR
 
 ( p: 2 0 2 0 0 40 20 ) ( r: 0 50 )
