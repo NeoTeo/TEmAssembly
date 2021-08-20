@@ -14,11 +14,15 @@
 ^58 @char/2
 00 00 38 04 18 20 3C 00 
 
-^80 @hejverden 48 65 6A 20 76 65 72 64 65 6E 0D
+^90 @hejverden 48 65 6A 20 76 65 72 64 65 6E 0D
 
 ^B0 @IME 01 ( enable interrupts )
 
-^100
+^C0 @keybufptr 0 
+^C1 @keybuf ( 20 byte keyboard buffer )
+
+
+^100 ( start of executable code )
 
 ( a character is 8 x 8 bits )
 @main
@@ -26,12 +30,48 @@
 	( #2 #0005 #0010 #@char/4 $@charline jsr )
 	( #2 #0005 #0011 #@char/2 $@charline jsr ) 
 	( $@console jsr )
+	
+	( infinite loop )
+	@main_toploop
+	$@main_toploop jmp
 	brk
 
 ( console input interrupt handler )
 @convec
+	_@console/read bsi	
+	#@keybuf $@keybufptr ldr stsC ( load the keybuf pointer value and copy to rStack )
+	add ( offset keybuf by pointer )
+	sta ( store key in keybuf )
+
+	stsR #1 add 	( recover ptr from rStack )
+	dup #20 lst $@convec_skip jnz ( increment pointer, compare with buffer size )
+	pop #0	( replace pointer value with 0 )	
+
+	@convec_skip
+	$@keybufptr str ( store the incremented pointer )
+	
+	#1 #@IME sta (re-enable interrupts )
+jmpSR
+
+@popkeybuf ( -- char )
+	#@keybuf 
+	$@keybufptr ldr stsC add 			( offset keybuf by pointer, copying it first )
+	lda 
+	
+	stsR
+	dup #0 grt $@popkeybuf_skip jnz 
+	pop #20 
+
+	@popkeybuf_skip
+	#1 sub
+	#@keybufptr sta ( store the incremented pointer )
+
+jmpSR
+
+@drawchar
 	#2 #0 #@currow lda #0 #@curcol lda
-	_@console/read bsi 
+	( _@console/read bsi )
+	$@popkeybuf jsr
 	$@fontoffset jsr #@font/monomini addS
 	$@charline jsr
 
@@ -45,9 +85,9 @@
 	#0 #@currow sta		( reset row )
 	@convec_done
 	
-	#1 #@IME sta (re-enable interrupts )
-	
+	( #1 #@IME sta ) (re-enable interrupts )
 jmpSR
+
 
 @fontoffset ( ascii -- offset )
 	#0 swp	( turn byte into short )
