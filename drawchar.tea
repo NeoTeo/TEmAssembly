@@ -16,6 +16,8 @@
 
 ^80 @hejverden 48 65 6A 20 76 65 72 64 65 6E 0D
 
+^B0 @IME 01 ( enable interrupts )
+
 ^100
 
 ( a character is 8 x 8 bits )
@@ -42,6 +44,8 @@
 	#3C lst $@convec_done jnz
 	#0 #@currow sta		( reset row )
 	@convec_done
+	
+	#1 #@IME sta (re-enable interrupts )
 	
 jmpSR
 
