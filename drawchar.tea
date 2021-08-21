@@ -31,15 +31,24 @@
 	( #2 #0005 #0011 #@char/2 $@charline jsr ) 
 	( $@console jsr )
 	
+	#4 #5 $@inc_ring jsr ( should leave 0 on stack ) ( pass )
+	#1 #5 $@inc_ring jsr ( should leave 2 on stack ) ( pass )
+	#42 #5 $@inc_ring jsr ( should leave 0 on stack ) ( pass )
+
+	#0 #5 $@dec_ring jsr ( should leave 4 on stack ) ( pass )
+	#1 #5 $@dec_ring jsr ( should leave 0 on stack ) ( pass )
+	#42 #5 $@dec_ring jsr ( should leave 4 on stack ) ( fail )
+	brk
 	( infinite loop )
 	@main_toploop
+	( check the keybufptr for not being 0 ...hm, can't do that with a ring buffer. perhaps i need a regular buffer.)
 	$@main_toploop jmp
 	brk
 
 ( console input interrupt handler )
 @convec
 	_@console/read bsi	
-	#@keybuf $@keybufptr ldr stsC ( load the keybuf pointer value and copy to rStack )
+	#@keybuf #@keybufptr lda stsC ( load the keybuf pointer value and copy to rStack )
 	add ( offset keybuf by pointer )
 	sta ( store key in keybuf )
 
@@ -48,14 +57,29 @@
 	pop #0	( replace pointer value with 0 )	
 
 	@convec_skip
-	$@keybufptr str ( store the incremented pointer )
+	#@keybufptr sta ( store the incremented pointer )
 	
 	#1 #@IME sta (re-enable interrupts )
 jmpSR
 
+@inc_ring ( cur max -- )
+	swp #1 add dup rot lst $@inc_ring_skip jnz
+	pop #0
+	@inc_ring_skip	
+jmpSR
+
+@dec_ring ( cur max -- )
+	swp dup #0 grt $@dec_ring_skip jnz
+	swp 	
+	@dec_ring_skip	
+	#1 sub 
+	swp pop
+jmpSR
+( 4 )
+
 @popkeybuf ( -- char )
 	#@keybuf 
-	$@keybufptr ldr stsC add 			( offset keybuf by pointer, copying it first )
+	#@keybufptr lda stsC add 			( offset keybuf by pointer, copying it first )
 	lda 
 	
 	stsR
