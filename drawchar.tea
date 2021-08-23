@@ -37,7 +37,7 @@
 
 	#0 #5 $@dec_ring jsr ( should leave 4 on stack ) ( pass )
 	#1 #5 $@dec_ring jsr ( should leave 0 on stack ) ( pass )
-	#42 #5 $@dec_ring jsr ( should leave 4 on stack ) ( fail )
+	#42 #5 $@dec_ring jsr ( should leave 4 on stack ) ( pass )
 	brk
 	( infinite loop )
 	@main_toploop
@@ -62,6 +62,7 @@
 	#1 #@IME sta (re-enable interrupts )
 jmpSR
 
+( byte only, range is 0 to max-1 )
 @inc_ring ( cur max -- )
 	swp #1 add dup rot lst $@inc_ring_skip jnz
 	pop #0
@@ -69,13 +70,11 @@ jmpSR
 jmpSR
 
 @dec_ring ( cur max -- )
-	swp dup #0 grt $@dec_ring_skip jnz
-	swp 	
+	swp #1 sub dupS grt $@dec_ring_skip jnz
+	swp #1 sub		
 	@dec_ring_skip	
-	#1 sub 
 	swp pop
 jmpSR
-( 4 )
 
 @popkeybuf ( -- char )
 	#@keybuf 
