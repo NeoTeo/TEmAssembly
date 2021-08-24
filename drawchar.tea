@@ -38,7 +38,7 @@
 	#88 $@push_keybuf jsr	
 	#99 $@push_keybuf jsr	
 
-brk
+	$@pop_keybuf jsr
 	$@pop_keybuf jsr
 	$@pop_keybuf jsr
 	$@pop_keybuf jsr
@@ -84,9 +84,9 @@ jmpSR
 
 	( circular buffer maxes out at #20 )
 	( #@keybuf_count dup lda #20 lst $@push_keybuf_skip jnz )
-	#@keybuf_count dupS lda 
+	#@keybuf_count lda 
 	#3 $@gre jsr $@push_keybuf_skip jnz
-	lda #1 add 
+	#@keybuf_count lda #1 add 
 	#@keybuf_count sta
 	@push_keybuf_skip
 jmpSR
@@ -100,17 +100,19 @@ jmpSR
 jmpSR
 
 @pop_keybuf ( -- char )
-	#@keybuf_count dup lda dup #0 equ jnz $@pop_keybuf_skip
-	#1 sub sta
+	#@keybuf_count lda dup #0 equ $@pop_keybuf_skip jnz 
+	#1 sub #@keybuf_count sta
 
-	#@keybuf #@keybufptr lda stsC 	( load the keybuf pointer and copy to rStack )
+	#@keybuf 
+	( keybufptr points to the next free pos so decrement first )
+	#@keybufptr lda #3 $@dec_ring jsr
+	dup #@keybufptr sta 			( store the pointer )
 	add 							( offset keybuf by pointer )
 	lda								( load the value at the offset onto pStack ) 
-	
-	( stsR #20 $@dec_ring jsr ) 		( decrement pointer )
-	stsR #3 $@dec_ring jsr 		( decrement pointer )
-	#@keybufptr sta 				( store the pointer )
+	$@pop_keybuf_end jmp ( gross )	
 	@pop_keybuf_skip
+	pop
+	@pop_keybuf_end
 jmpSR
 
 @drawchar
