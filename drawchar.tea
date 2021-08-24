@@ -34,19 +34,17 @@
 	( $@console jsr )
 
 	#42 $@push_keybuf jsr
-	#69 $@push_keybuf jsr	
-	#88 $@push_keybuf jsr	
-	#99 $@push_keybuf jsr	
-
-	$@pop_keybuf jsr
-	$@pop_keybuf jsr
-	$@pop_keybuf jsr
-	$@pop_keybuf jsr
+	#6F $@push_keybuf jsr	
+	#65 $@push_keybuf jsr	
+	#54 $@push_keybuf jsr	
 	
-	brk
 	( infinite loop )
 	@main_toploop
-	( check the keybuf_count being > 0 )
+		( check the keybuf_count being > 0 )
+		#@keybuf_count lda #0 equ $@main_skip_keybuf jnz
+		$@pop_keybuf jsr 
+		_@console/write bso
+		@main_skip_keybuf
 	$@main_toploop jmp
 	brk
 
@@ -77,13 +75,11 @@ jmpSR
 	add ( offset keybuf by pointer )
 	sta ( store key in keybuf )
 
-	( stsR #20 $@inc_ring jsr ) ( increment pointer )
 	stsR #3 $@inc_ring jsr	( debug small buf )
 
 	#@keybufptr sta ( store the incremented pointer )
 
 	( circular buffer maxes out at #20 )
-	( #@keybuf_count dup lda #20 lst $@push_keybuf_skip jnz )
 	#@keybuf_count lda 
 	#3 $@gre jsr $@push_keybuf_skip jnz
 	#@keybuf_count lda #1 add 
