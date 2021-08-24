@@ -29,21 +29,14 @@
 ( a character is 8 x 8 bits )
 @main
 	#@convec _@console/vector bsoS ( set the console interrupt vector ) 
-	( #2 #0005 #0010 #@char/4 $@charline jsr )
-	( #2 #0005 #0011 #@char/2 $@charline jsr ) 
-	( $@console jsr )
 
-	#42 $@push_keybuf jsr
-	#6F $@push_keybuf jsr	
-	#65 $@push_keybuf jsr	
-	#54 $@push_keybuf jsr	
-	
 	( infinite loop )
 	@main_toploop
 		( check the keybuf_count being > 0 )
 		#@keybuf_count lda #0 equ $@main_skip_keybuf jnz
 		$@pop_keybuf jsr 
-		_@console/write bso
+		( _@console/write bso )
+		#@drawchar jsrS 
 		@main_skip_keybuf
 	$@main_toploop jmp
 	brk
@@ -52,6 +45,7 @@
 @convec
 	_@console/read bsi	
 	
+	$@push_keybuf jsr	
 	#1 #@IME sta (re-enable interrupts )
 jmpSR
 
@@ -75,13 +69,13 @@ jmpSR
 	add ( offset keybuf by pointer )
 	sta ( store key in keybuf )
 
-	stsR #3 $@inc_ring jsr	( debug small buf )
+	stsR #@keybuf_max lda $@inc_ring jsr	( debug small buf )
 
 	#@keybufptr sta ( store the incremented pointer )
 
 	( circular buffer maxes out at #20 )
 	#@keybuf_count lda 
-	#3 $@gre jsr $@push_keybuf_skip jnz
+	#@keybuf_max lda $@gre jsr $@push_keybuf_skip jnz
 	#@keybuf_count lda #1 add 
 	#@keybuf_count sta
 	@push_keybuf_skip
@@ -101,7 +95,7 @@ jmpSR
 
 	#@keybuf 
 	( keybufptr points to the next free pos so decrement first )
-	#@keybufptr lda #3 $@dec_ring jsr
+	#@keybufptr lda #@keybuf_max lda $@dec_ring jsr
 	dup #@keybufptr sta 			( store the pointer )
 	add 							( offset keybuf by pointer )
 	lda								( load the value at the offset onto pStack ) 
@@ -112,9 +106,11 @@ jmpSR
 jmpSR
 
 @drawchar
-	#2 #0 #@currow lda #0 #@curcol lda
+	sts	( put the char onto the rStack )
+	#2  ( clut index )
+	#0 #@currow lda #0 #@curcol lda		( short row and col )
+	stsR ( move char from rStack )		( ascii char value )
 	( _@console/read bsi )
-	( $@pop_keybuf jsr )
 	$@fontoffset jsr #@font/monomini addS
 	$@charline jsr
 
