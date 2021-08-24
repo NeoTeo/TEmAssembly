@@ -19,7 +19,9 @@
 ^B0 @IME 01 ( enable interrupts )
 
 ^C0 @keybufptr 0 
-^C1 @keybuf ( 20 byte keyboard buffer )
+^C1 @keybuf_count 0
+^C2 @keybuf_max 20 
+^C3 @keybuf ( keybuf_max * byte keyboard buffer )
 
 
 ^100 ( start of executable code )
@@ -30,34 +32,27 @@
 	( #2 #0005 #0010 #@char/4 $@charline jsr )
 	( #2 #0005 #0011 #@char/2 $@charline jsr ) 
 	( $@console jsr )
-	
-	#4 #5 $@inc_ring jsr ( should leave 0 on stack ) ( pass )
-	#1 #5 $@inc_ring jsr ( should leave 2 on stack ) ( pass )
-	#42 #5 $@inc_ring jsr ( should leave 0 on stack ) ( pass )
 
-	#0 #5 $@dec_ring jsr ( should leave 4 on stack ) ( pass )
-	#1 #5 $@dec_ring jsr ( should leave 0 on stack ) ( pass )
-	#42 #5 $@dec_ring jsr ( should leave 4 on stack ) ( pass )
+	#42 $@push_keybuf jsr
+	#69 $@push_keybuf jsr	
+	#88 $@push_keybuf jsr	
+	#99 $@push_keybuf jsr	
+
+brk
+	$@pop_keybuf jsr
+	$@pop_keybuf jsr
+	$@pop_keybuf jsr
+	
 	brk
 	( infinite loop )
 	@main_toploop
-	( check the keybufptr for not being 0 ...hm, can't do that with a ring buffer. perhaps i need a regular buffer.)
+	( check the keybuf_count being > 0 )
 	$@main_toploop jmp
 	brk
 
 ( console input interrupt handler )
 @convec
 	_@console/read bsi	
-	#@keybuf #@keybufptr lda stsC ( load the keybuf pointer value and copy to rStack )
-	add ( offset keybuf by pointer )
-	sta ( store key in keybuf )
-
-	stsR #1 add 	( recover ptr from rStack )
-	dup #20 lst $@convec_skip jnz ( increment pointer, compare with buffer size )
-	pop #0	( replace pointer value with 0 )	
-
-	@convec_skip
-	#@keybufptr sta ( store the incremented pointer )
 	
 	#1 #@IME sta (re-enable interrupts )
 jmpSR
@@ -76,25 +71,52 @@ jmpSR
 	swp pop
 jmpSR
 
-@popkeybuf ( -- char )
-	#@keybuf 
-	#@keybufptr lda stsC add 			( offset keybuf by pointer, copying it first )
-	lda 
-	
-	stsR
-	dup #0 grt $@popkeybuf_skip jnz 
-	pop #20 
+@push_keybuf ( val -- )
 
-	@popkeybuf_skip
-	#1 sub
+	#@keybuf #@keybufptr lda stsC ( load the keybuf pointer value and copy to rStack )
+	add ( offset keybuf by pointer )
+	sta ( store key in keybuf )
+
+	( stsR #20 $@inc_ring jsr ) ( increment pointer )
+	stsR #3 $@inc_ring jsr	( debug small buf )
+
 	#@keybufptr sta ( store the incremented pointer )
 
+	( circular buffer maxes out at #20 )
+	( #@keybuf_count dup lda #20 lst $@push_keybuf_skip jnz )
+	#@keybuf_count dupS lda 
+	#3 $@gre jsr $@push_keybuf_skip jnz
+	lda #1 add 
+	#@keybuf_count sta
+	@push_keybuf_skip
+jmpSR
+
+@gre ( n n - result )
+	dupS lst $@gre_eqskip jnz
+	equ $@gre_end jmp
+	@gre_eqskip
+	popS #0
+	@gre_end
+jmpSR
+
+@pop_keybuf ( -- char )
+	#@keybuf_count dup lda dup #0 equ jnz $@pop_keybuf_skip
+	#1 sub sta
+
+	#@keybuf #@keybufptr lda stsC 	( load the keybuf pointer and copy to rStack )
+	add 							( offset keybuf by pointer )
+	lda								( load the value at the offset onto pStack ) 
+	
+	( stsR #20 $@dec_ring jsr ) 		( decrement pointer )
+	stsR #3 $@dec_ring jsr 		( decrement pointer )
+	#@keybufptr sta 				( store the pointer )
+	@pop_keybuf_skip
 jmpSR
 
 @drawchar
 	#2 #0 #@currow lda #0 #@curcol lda
 	( _@console/read bsi )
-	$@popkeybuf jsr
+	( $@pop_keybuf jsr )
 	$@fontoffset jsr #@font/monomini addS
 	$@charline jsr
 
