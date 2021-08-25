@@ -4,7 +4,9 @@
 
 ^28 @screen/xposition
 ^2A @screen/yposition
-^2E @screen/color
+^2C @screen/addr
+^2E @screen/clut
+^2F @screen/mmu
 
 ^42 @curcol 0
 ^43 @currow 0
@@ -35,8 +37,8 @@
 		( check the keybuf_count being > 0 )
 		#@keybuf_count lda #0 equ $@main_skip_keybuf jnz
 		$@pop_keybuf jsr 
-		( _@console/write bso )
-		#@drawchar jsrS 
+		#@drawchar2 jsrS 
+		( #@drawchar jsrS )
 		@main_skip_keybuf
 	$@main_toploop jmp
 	brk
@@ -105,6 +107,31 @@ jmpSR
 	@pop_keybuf_end
 jmpSR
 
+@drawchar2
+	sts	( put the char onto the rStack )
+	#0 #@currow lda #0 #@curcol lda		( short row and col )
+	#@colrowtoxy jsrS	( convert row and col to xy ) 
+	_@screen/yposition bsoS
+	_@screen/xposition bsoS
+
+	stsR ( move char from rStack )		( ascii char value )
+	#@fontoffset jsrS #@font/monomini addS
+	_@screen/addr bsoS
+
+	#1 _@screen/mmu bso
+
+	( independent section to increment the columns and rows as charactes are printed. Move to own procedure. )
+	#@curcol lda #1 add ( increment column )
+	dup #@curcol sta 	( redundant, load currow and curcol as single short and swap as needed )
+	#50 lst $@drawchar2_done jnz
+	#0 #@curcol sta		( reset col )
+	#@currow lda #1 add ( increment row )
+	dup #@currow sta	( redundant, load currow and curcol as single short and swap as needed )
+	#3C lst $@drawchar2_done jnz
+	#0 #@currow sta		( reset row )
+	@drawchar2_done
+jmpSR
+
 @drawchar
 	sts	( put the char onto the rStack )
 	#2  ( clut index )
@@ -124,7 +151,6 @@ jmpSR
 	#0 #@currow sta		( reset row )
 	@convec_done
 	
-	( #1 #@IME sta ) (re-enable interrupts )
 jmpSR
 
 
@@ -219,7 +245,7 @@ jmpSR
 @dot ( col x y -- )
 	_@screen/yposition bsoS
 	_@screen/xposition bsoS 
-	_@screen/color bso	 
+	_@screen/clut bso	 
 jmpSR
 
 (chars are at 0x400 + ascii*8 )
