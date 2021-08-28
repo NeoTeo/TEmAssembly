@@ -35,20 +35,25 @@
 		( if the char is > 0x20 handle control character else print )
 		#@drawchar jsrS 
 
-		( independent section to increment the columns and rows as charactes are printed. Move to own procedure. )
-		#1 add ( increment column )
-		dup #50 lst $@drawchar_done jnz
-		pop #0 ( reset col )
-		swp #1 add ( increment row )
-		dup #3C lst $@drawchar_skip_rowreset jnz
-		pop #0 ( reset row )
-		@drawchar_skip_rowreset
-		swp
-		@drawchar_done
+		( increment the columns and rows as characters are printed. )
+		$@advancecursor jsr
 
 		@main_skip_keybuf
 	$@main_toploop jmp
 	brk
+
+( advance cursor to next column and row as necessary )
+@advancecursor ( col row -- col row )
+	#1 add ( increment column )
+	dup #50 lst $@advancecursor_done jnz
+	pop #0 ( reset col )
+	swp #1 add ( increment row )
+	dup #3C lst $@advancecursor_skip_rowreset jnz
+	pop #0 ( reset row )
+	@advancecursor_skip_rowreset
+	swp
+	@advancecursor_done
+jmpSR
 
 @drawchar ( row col char -- ) ( bbb )
 	sts	( put the char onto the rStack )
