@@ -6,7 +6,7 @@
 ^2A @screen/yposition
 ^2C @screen/addr
 ^2E @screen/clut
-^2F @screen/mmu
+^2F @screen/dma
 
 ^B0 @IME 01 ( enable interrupts )
 
@@ -56,16 +56,16 @@
 jmpSR
 
 @drawchar ( row col char -- ) ( bbb )
-	sts	( put the char onto the rStack )
-	#@rowcoltoxy jsrS	( convert row and col to xy ) 
+	sts						( put the char onto the rStack )
+	#@rowcoltoxy jsrS		( convert row and col to xy ) 
 	_@screen/yposition bsoS
 	_@screen/xposition bsoS
 
-	stsR ( move char from rStack )		( ascii char value )
+	stsR 					( move char from rStack )
 	#@fontoffset jsrS #@font/monomini addS
 	_@screen/addr bsoS
 
-	#1 _@screen/mmu bso
+	#1 _@screen/dma bso		( start dma transfer of 64 bits from addr )
 jmpSR
 
 ( console input interrupt handler )
