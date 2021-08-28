@@ -1,0 +1,251 @@
+^10 @console/vector
+^12 @console/read
+^18 @console/write
+
+^28 @screen/xposition
+^2A @screen/yposition
+^2C @screen/addr
+^2E @screen/clut
+^2F @screen/mmu
+
+^B0 @IME 01 ( enable interrupts )
+
+^C0 @keybufptr 0 
+^C1 @keybuf_count 0
+^C2 @keybuf_max 20 
+^C3 @keybuf ( keybuf_max * byte keyboard buffer )
+
+
+^100 ( start of executable code )
+
+( a character is 8 x 8 bits )
+@main
+	#@convec _@console/vector bsoS ( set the console interrupt vector ) 
+
+	#0000	( row and col inited )
+	( infinite loop )
+	@main_toploop
+
+		( check the keybuf_count being > 0 )
+		#@keybuf_count lda #0 equ $@main_skip_keybuf jnz
+		
+		dupS ( keep copy of row and col before calling drawchar )
+		#@pop_keybuf jsrS
+
+		( if the char is > 0x20 handle control character else print )
+		#@drawchar jsrS 
+
+		( independent section to increment the columns and rows as charactes are printed. Move to own procedure. )
+		#1 add ( increment column )
+		dup #50 lst $@drawchar_done jnz
+		pop #0 ( reset col )
+		swp #1 add ( increment row )
+		dup #3C lst $@drawchar_skip_rowreset jnz
+		pop #0 ( reset row )
+		@drawchar_skip_rowreset
+		swp
+		@drawchar_done
+
+		@main_skip_keybuf
+	$@main_toploop jmp
+	brk
+
+@drawchar ( row col char -- ) ( bbb )
+	sts	( put the char onto the rStack )
+	#@rowcoltoxy jsrS	( convert row and col to xy ) 
+	_@screen/yposition bsoS
+	_@screen/xposition bsoS
+
+	stsR ( move char from rStack )		( ascii char value )
+	#@fontoffset jsrS #@font/monomini addS
+	_@screen/addr bsoS
+
+	#1 _@screen/mmu bso
+jmpSR
+
+( console input interrupt handler )
+@convec
+	_@console/read bsi	
+	
+	$@push_keybuf jsr	
+	#1 #@IME sta (re-enable interrupts )
+jmpSR
+
+( byte only, range is 0 to max-1 )
+@inc_ring ( cur max -- )
+	swp #1 add dup rot lst $@inc_ring_skip jnz
+	pop #0
+	@inc_ring_skip	
+jmpSR
+
+@dec_ring ( cur max -- )
+	swp #1 sub dupS grt $@dec_ring_skip jnz
+	swp #1 sub		
+	@dec_ring_skip	
+	swp pop
+jmpSR
+
+@push_keybuf ( val -- )
+
+	#@keybuf #@keybufptr lda stsC ( load the keybuf pointer value and copy to rStack )
+	add ( offset keybuf by pointer )
+	sta ( store key in keybuf )
+
+	stsR #@keybuf_max lda $@inc_ring jsr	( debug small buf )
+
+	#@keybufptr sta ( store the incremented pointer )
+
+	( circular buffer maxes out at #20 )
+	#@keybuf_count lda 
+	#@keybuf_max lda $@gre jsr $@push_keybuf_skip jnz
+	#@keybuf_count lda #1 add 
+	#@keybuf_count sta
+	@push_keybuf_skip
+jmpSR
+
+@gre ( n n - result )
+	dupS lst $@gre_eqskip jnz
+	equ $@gre_end jmp
+	@gre_eqskip
+	popS #0
+	@gre_end
+jmpSR
+
+@pop_keybuf ( -- char )
+	#@keybuf_count lda dup #0 equ $@pop_keybuf_skip jnz 
+	#1 sub #@keybuf_count sta
+
+	#@keybuf 
+	( keybufptr points to the next free pos so decrement first )
+	#@keybufptr lda #@keybuf_max lda $@dec_ring jsr
+	dup #@keybufptr sta 			( store the pointer )
+	add 							( offset keybuf by pointer )
+	lda								( load the value at the offset onto pStack ) 
+	$@pop_keybuf_end jmp ( gross )	
+	@pop_keybuf_skip
+	pop
+	@pop_keybuf_end
+jmpSR
+
+( useful for turning two bytes into two shorts if c and d are 0 )
+@prezip ( a b c d -- c a d b )
+	swp swpS rot rot swpS
+jmpSR
+
+@fontoffset ( ascii -- offset )
+	#0 swp	( turn byte into short )
+	#30 shiS		
+jmpSR
+
+@rowcoltoxy ( col row -- x y ) ( bb -- ss )
+	#0 #0 #@prezip jsrS
+	( screen resolution is 640x480. Each cell in grid is 8x8. So x is 8*col and y is 8*row )
+	#30 shiS swpS
+	#30 shiS
+jmpSR
+
+@dot ( col x y -- )
+	_@screen/yposition bsoS
+	_@screen/xposition bsoS 
+	_@screen/clut bso	 
+jmpSR
+
+(chars are at 0x400 + ascii*8 )
+^400 @font/monomini
+( unprintable ascii from 0x400 to 0x41F )
+^500 
+00 00 00 00 00 00 00 00 ( space )
+00 10 10 10 00 10 00 00 ( ! )
+00 12 24 00 00 00 00 00 ( " )
+00 28 7C 28 7C 28 00 00 ( # )
+00 08 1C 30 0C 38 08 00 ( $ )
+00 48 08 10 20 24 00 00 ( % )
+00 30 40 34 48 34 00 00 ( & )
+00 20 20 00 00 00 00 00 ( ' )
+00 10 20 20 20 10 00 00 ( open parens )
+00 20 10 10 10 20 00 00 ( close parens )
+00 00 28 10 28 00 00 00 ( * )
+00 00 10 38 10 00 00 00 ( + )
+00 00 00 00 00 10 20 00 ( , )
+00 00 00 38 00 00 00 00 ( - )
+00 00 00 00 00 10 00 00 ( . )
+00 02 04 08 10 20 00 00 ( / )
+00 18 24 24 24 18 00 00 ( 0 )
+00 18 08 08 08 08 00 00 ( 1 )
+00 38 04 18 20 3C 00 00 ( 2 )
+00 38 04 18 04 38 00 00 ( 3 )
+00 08 18 28 3C 08 00 00 ( 4 )
+00 3C 20 38 04 38 00 00 ( 5 )
+00 18 20 38 24 18 00 00 ( 6 )
+00 3C 04 08 10 10 00 00 ( 7 )
+00 18 24 18 24 18 00 00 ( 8 )
+00 18 24 1C 04 18 00 00 ( 9 )
+00 00 00 10 00 10 00 00 ( : )
+00 00 00 10 00 10 20 00 ( ; )
+00 08 10 20 10 08 00 00 ( < )
+00 00 38 00 38 00 00 00 ( = )
+00 20 10 08 10 20 00 00 ( > )
+00 38 04 38 00 20 00 00 ( ? )
+00 38 44 5C 54 38 00 00 ( @ )
+00 18 24 24 3C 24 00 00 ( A )
+00 38 24 38 24 38 00 00 ( B )
+00 18 20 20 20 18 00 00 ( C )
+00 38 24 24 24 38 00 00 ( D )
+00 38 20 38 20 38 00 00 ( E )
+00 38 20 38 20 20 00 00 ( F )
+00 1C 20 2C 24 1C 00 00 ( G )
+00 24 24 3C 24 24 00 00 ( H )
+00 38 10 10 10 38 00 00 ( I )
+00 0C 04 04 24 18 00 00 ( J )
+00 24 28 30 28 24 00 00 ( K )
+00 20 20 20 20 38 00 00 ( L )
+00 22 36 2A 22 22 00 00 ( M )
+00 24 34 2C 24 24 00 00 ( N )
+00 18 24 24 24 18 00 00 ( O )
+00 38 24 24 38 20 00 00 ( P )
+00 18 24 24 28 14 00 00 ( Q )
+00 3C 24 24 38 24 00 00 ( R )
+00 1C 20 18 04 38 00 00 ( S )
+00 38 10 10 10 10 00 00 ( T )
+00 24 24 24 24 18 00 00 ( U )
+00 24 24 24 28 30 00 00 ( V )
+00 44 54 54 54 28 00 00 ( W )
+00 24 24 18 24 24 00 00 ( X )
+00 24 24 3C 04 18 00 00 ( Y )
+00 3C 04 18 20 3C 00 00 ( Z )
+00 30 20 20 20 30 00 00 ( [ )
+00 20 10 08 04 02 00 00 ( \ )
+00 30 10 10 10 30 00 00 ( ] )
+00 10 28 00 00 00 00 00 ( ^ )
+00 00 00 00 00 3C 00 00 ( _ )
+00 20 10 00 00 00 00 00 ( ` )
+00 00 1C 24 24 1C 00 00 ( a )
+00 20 38 24 24 38 00 00 ( b )
+00 00 18 20 20 18 00 00 ( c )
+00 04 1C 24 24 1C 00 00 ( d )
+00 00 18 2C 30 18 00 00 ( e )
+00 08 10 38 10 10 00 00 ( f )
+00 00 1C 24 24 1C 04 18 ( g )
+00 20 20 30 28 28 00 00 ( h )
+00 10 00 10 10 10 00 00 ( i )
+00 10 00 10 10 10 20 00 ( j )
+00 20 20 28 30 28 00 00 ( k )
+00 10 10 10 10 08 00 00 ( l )
+00 00 3C 2A 2A 2A 00 00 ( m )
+00 00 38 24 24 24 00 00 ( n )
+00 00 18 24 24 18 00 00 ( o )
+00 00 38 24 24 38 20 20 ( p )
+00 00 1C 24 24 1C 04 04 ( q )
+00 00 28 30 20 20 00 00 ( r )
+00 00 1C 30 0C 38 00 00 ( s )
+00 10 1C 10 10 08 00 00 ( t )
+00 00 24 24 24 1C 00 00 ( u )
+00 00 24 24 28 10 00 00 ( v )
+00 00 54 54 28 28 00 00 ( w )
+00 00 24 18 18 24 00 00 ( x )
+00 00 24 24 24 1C 04 18 ( y )
+00 00 3C 08 10 3C 00 00 ( z )
+00 18 10 20 10 18 00 00 ( { )
+00 10 10 10 10 10 00 00 ( | )
+00 30 10 08 10 30 00 00 ( } )
+00 14 28 00 00 00 00 00 ( ~ )
