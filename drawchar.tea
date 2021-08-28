@@ -8,14 +8,6 @@
 ^2E @screen/clut
 ^2F @screen/mmu
 
-^42 @curcol 0
-^43 @currow 0
-
-^50 @char/4
-00 00 08 18 28 3C 08 00
-^58 @char/2
-00 00 38 04 18 20 3C 00 
-
 ^90 @hejverden 48 65 6A 20 76 65 72 64 65 6E 0D
 
 ^B0 @IME 01 ( enable interrupts )
@@ -32,16 +24,46 @@
 @main
 	#@convec _@console/vector bsoS ( set the console interrupt vector ) 
 
+	#0000	( row and col inited )
 	( infinite loop )
 	@main_toploop
+
 		( check the keybuf_count being > 0 )
 		#@keybuf_count lda #0 equ $@main_skip_keybuf jnz
-		$@pop_keybuf jsr 
-		#@drawchar2 jsrS 
-		( #@drawchar jsrS )
+		
+		dupS ( keep copy of row and col before calling drawchar )
+		#@pop_keybuf jsrS
+
+		( if the char is > 0x20 handle control character else print )
+		#@drawchar jsrS 
+
+		( independent section to increment the columns and rows as charactes are printed. Move to own procedure. )
+		#1 add ( increment column )
+		dup #50 lst $@drawchar_done jnz
+		pop #0 ( reset col )
+		swp #1 add ( increment row )
+		dup #3C lst $@drawchar_skip_rowreset jnz
+		pop #0 ( reset row )
+		@drawchar_skip_rowreset
+		swp
+		@drawchar_done
+
 		@main_skip_keybuf
 	$@main_toploop jmp
 	brk
+
+@drawchar ( row col char -- ) ( bbb )
+	sts	( put the char onto the rStack )
+	#@rowcoltoxy jsrS	( convert row and col to xy ) 
+	_@screen/yposition bsoS
+	_@screen/xposition bsoS
+
+	stsR ( move char from rStack )		( ascii char value )
+	#@fontoffset jsrS #@font/monomini addS
+	_@screen/addr bsoS
+
+	#1 _@screen/mmu bso
+jmpSR
 
 ( console input interrupt handler )
 @convec
@@ -107,52 +129,10 @@ jmpSR
 	@pop_keybuf_end
 jmpSR
 
-@drawchar2
-	sts	( put the char onto the rStack )
-	#0 #@currow lda #0 #@curcol lda		( short row and col )
-	#@colrowtoxy jsrS	( convert row and col to xy ) 
-	_@screen/yposition bsoS
-	_@screen/xposition bsoS
-
-	stsR ( move char from rStack )		( ascii char value )
-	#@fontoffset jsrS #@font/monomini addS
-	_@screen/addr bsoS
-
-	#1 _@screen/mmu bso
-
-	( independent section to increment the columns and rows as charactes are printed. Move to own procedure. )
-	#@curcol lda #1 add ( increment column )
-	dup #@curcol sta 	( redundant, load currow and curcol as single short and swap as needed )
-	#50 lst $@drawchar2_done jnz
-	#0 #@curcol sta		( reset col )
-	#@currow lda #1 add ( increment row )
-	dup #@currow sta	( redundant, load currow and curcol as single short and swap as needed )
-	#3C lst $@drawchar2_done jnz
-	#0 #@currow sta		( reset row )
-	@drawchar2_done
+( useful for turning two bytes into two shorts if c and d are 0 )
+@prezip ( a b c d -- c a d b )
+	swp swpS rot rot swpS
 jmpSR
-
-@drawchar
-	sts	( put the char onto the rStack )
-	#2  ( clut index )
-	#0 #@currow lda #0 #@curcol lda		( short row and col )
-	stsR ( move char from rStack )		( ascii char value )
-	( _@console/read bsi )
-	$@fontoffset jsr #@font/monomini addS
-	$@charline jsr
-
-	#@curcol lda #1 add ( increment column )
-	dup #@curcol sta 	( redundant, load currow and curcol as single short and swap as needed )
-	#50 lst $@convec_done jnz
-	#0 #@curcol sta		( reset col )
-	#@currow lda #1 add ( increment row )
-	dup #@currow sta	( redundant, load currow and curcol as single short and swap as needed )
-	#3C lst $@convec_done jnz
-	#0 #@currow sta		( reset row )
-	@convec_done
-	
-jmpSR
-
 
 @fontoffset ( ascii -- offset )
 	#0 swp	( turn byte into short )
@@ -171,11 +151,18 @@ jmpSR
 jmpSR
 
 
+@rowcoltoxy ( col row -- x y ) ( bb -- ss )
+	#0 #0 #@prezip jsrS
+	( screen resolution is 640x480. Each cell in grid is 8x8. So x is 8*col and y is 8*row )
+	#30 shiS swpS
+	#30 shiS
+jmpSR
+
 @colrowtoxy ( colS row -- x y ) ( all shorts )
 	( screen resolution is 640x480. Each cell in grid is 8x8. So x is 8*col and y is 8*row )
 	#30 shiS swpS
 	#30 shiS
-	jmpSR
+jmpSR
 
 @charline ( cidx row col addr -- ) ( b s s s )
 	stsS 				( addr to rstack )  
@@ -297,7 +284,7 @@ jmpSR
 00 0C 04 04 24 18 00 00 ( J )
 00 24 28 30 28 24 00 00 ( K )
 00 20 20 20 20 38 00 00 ( L )
-00 22 36 2A 22 20 00 00 ( M )
+00 22 36 2A 22 22 00 00 ( M )
 00 24 34 2C 24 24 00 00 ( N )
 00 18 24 24 24 18 00 00 ( O )
 00 38 24 24 38 20 00 00 ( P )
