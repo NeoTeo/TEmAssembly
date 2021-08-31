@@ -32,13 +32,23 @@
 		dupS ( keep copy of row and col before calling drawchar )
 		#@pop_keybuf jsrS
 
-		( if the char is > 0x20 handle control character else print )
+		( check for delete and control characters )
+		dup #7F equ $@main_doctrl jnz
+		dup #20 lst $@main_doctrl jnz
+
 		#@drawchar jsrS 
-
+		
 		( increment the columns and rows as characters are printed. )
-		( $@advancecursor jsr )
-		#3 $@advancecursor2 jsr
+		#1 $@advancecursor2 jsr
+		$@main_skip_keybuf jmp	
 
+		@main_doctrl
+		#7F equ #0 equ $@main_skip_keybuf jnz
+		( delete )	
+		#0 $@advancecursor2 jsr
+		( draw a space )
+		dupS #20 #@drawchar jsrS 
+		
 		@main_skip_keybuf
 	$@main_toploop jmp
 	brk
@@ -159,6 +169,7 @@ jmpSR
 	@push_keybuf_skip
 jmpSR
 
+( greater than or equal )
 @gre ( n n - result )
 	dupS lst $@gre_eqskip jnz
 	equ $@gre_end jmp
