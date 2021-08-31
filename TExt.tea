@@ -36,14 +36,65 @@
 		#@drawchar jsrS 
 
 		( increment the columns and rows as characters are printed. )
-		$@advancecursor jsr
+		( $@advancecursor jsr )
+		#3 $@advancecursor2 jsr
 
 		@main_skip_keybuf
 	$@main_toploop jmp
 	brk
 
 ( advance cursor to next column and row as necessary )
-@advancecursor ( col row -- col row )
+( dir are: 0 = left, 1 = right, 2 = up, 3 = down )
+( consider using the ff resulting from the sub for deciding direction, not rStack var )
+@advancecursor2 ( row col dir -- row col )	
+	( horizontal or vertical movement ? )
+	dup #1 grt $@advancecursor2_vert jnz
+
+	( left or right ? )
+	#0 equ $@advancecursor2_left jnz	
+	#1 add ( increment column )
+	$@advancecursor2_skipsub jmp
+	@advancecursor2_left #1 sub
+	@advancecursor2_skipsub
+
+	( check for need to change row )
+	dup #50 lst $@advancecursor2_done jnz
+
+	( reset col )
+	#0 swp 
+	( if the new col is 50 we must have moved right )
+	#50 equ $@advancecursor2_skiptrail jnz
+	pop #4F
+	@advancecursor2_skiptrail
+
+	( set the vertical direction we want )
+	#2 ovr ( default direction is up )
+	#4F equ $@advancecursor2_skipdown jnz
+	pop #3 
+	@advancecursor2_skipdown
+
+	@advancecursor2_vert
+	( up or down ? )
+	#2 equ $@advancecursor2_up jnz
+	swp #1 add ( increment row )
+	$@advancecursor2_skipup jmp
+	@advancecursor2_up 
+	swp #1 sub ( decrement row )
+	@advancecursor2_skipup 
+
+	dup #3C lst $@advancecursor2_vertdone jnz
+	#0 swp ( reset row )
+
+	#3C equ $@advancecursor2_vertdone jnz
+	pop #3B 
+
+	@advancecursor2_vertdone
+	swp
+	@advancecursor2_done
+jmpSR
+
+( advance cursor to next column and row as necessary )
+@advancecursor ( row col -- row col )
 	#1 add ( increment column )
 	dup #50 lst $@advancecursor_done jnz
 	pop #0 ( reset col )
