@@ -22,7 +22,7 @@
 @main
 	#@convec _@console/vector bsoS ( set the console interrupt vector ) 
 
-	#3B4F	( row and col inited )
+	#0000	( row and col inited )
 	( infinite loop )
 	@main_toploop
 
@@ -39,27 +39,29 @@
 		#@drawchar jsrS 
 		
 		( increment the columns and rows as characters are printed. )
-		#50 swp #1 $@step jsr 
-		#0 equ $@main_skip_vstep jnz 
-		swp #3C swp #1 $@step jsr pop swp
-		@main_skip_vstep
+		#1 $@advancecursor jsr
 
 		$@main_skip_keybuf jmp	
 
 		@main_doctrl
 		#7F equ #0 equ $@main_skip_keybuf jnz
 		( delete )	
-		#50 swp #FF $@step jsr 
-		#0 equ $@main_skip_vstep2 jnz 
-		swp #3C swp #FF $@step jsr pop swp
-		@main_skip_vstep2
-
+		#FF $@advancecursor jsr
+         
 		( draw a space )
 		dupS #20 #@drawchar jsrS 
 		
 		@main_skip_keybuf
 	$@main_toploop jmp
 	brk
+
+@advancecursor ( row col stepval -- newrow newcol )
+	sts #50 swp stsCR $@step jsr 
+	#0 equ $@advancecursor_skip_vstep jnz 
+	swp #3C swp stsCR $@step jsr pop swp
+	@advancecursor_skip_vstep
+	popR
+jmpSR
 
 ( step cursor by stepval signed and leave new col and 0xff if the column was reset )
 @step ( maxcols col stepval -- newcol didreset )
