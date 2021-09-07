@@ -43,15 +43,27 @@
 
 		$@main_skip_keybuf jmp	
 
+		( handle control characters )
 		@main_doctrl
-		#7F equ #0 equ $@main_skip_keybuf jnz
-		( delete )	
+		dup #7F equ #0 equ $@main_skip_delete jnz
+		pop ( remove extra unneeded char copy )
+		( move back and draw a space )	
 		#FF $@advancecursor jsr
-         
-		( draw a space )
 		dupS #20 #@drawchar jsrS 
+		$@main_skip_keybuf jmp
+
+		@main_skip_delete
 		
+		#0D equ #0 equ $@main_skip_enter jnz
+		( set col to end and advance, which causes it to move to the next line. )
+		pop #4F 
+		#1 $@advancecursor jsr
+		$@main_skip_keybuf jmp
+
+		@main_skip_enter
+
 		@main_skip_keybuf
+
 	$@main_toploop jmp
 	brk
 
