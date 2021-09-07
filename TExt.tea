@@ -45,7 +45,7 @@
 
 		( handle control characters )
 		@main_doctrl
-		dup #7F equ #0 equ $@main_skip_delete jnz
+		dup #7F neq $@main_skip_delete jnz
 		pop ( remove extra unneeded char copy )
 		( move back and draw a space )	
 		#FF $@advancecursor jsr
@@ -54,7 +54,7 @@
 
 		@main_skip_delete
 		
-		#0D equ #0 equ $@main_skip_enter jnz
+		#0D neq $@main_skip_enter jnz
 		( set col to end and advance, which causes it to move to the next line. )
 		pop #4F 
 		#1 $@advancecursor jsr
