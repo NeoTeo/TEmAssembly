@@ -15,8 +15,22 @@
 ^C2 @keybuf_max 20 
 ^C3 @keybuf ( keybuf_max * byte keyboard buffer )
 
+( macro definitions )
+%>= { $@gre jsr }
 
-^100 ( start of executable code )
+( useful for turning two bytes into two shorts if c and d are 0 )
+%prezip { swp swpS rot rot swpS } ( a b c d -- c a d b )
+
+%setpixel { _@screen/yposition bsoS _@screen/xposition bsoS _@screen/clut bso } ( col x y -- )
+
+%fontoffset { #0 swp ( turn byte into short ) #30 shiS }
+
+( convert row and col to xy ) 
+( screen resolution is 640x480. Each cell in grid is 8x8. So x is 8*col and y is 8*row )
+%rowcoltoxy { #0 #0 prezip #30 shiS swpS  #30 shiS } ( col row -- x y ) ( bb -- ss )
+
+( start of executable code )
+^100 
 
 ( a character is 8 x 8 bits )
 @main
@@ -87,12 +101,12 @@ jmpSR
 
 @drawchar ( row col char -- ) ( bbb )
 	sts						( put the char onto the rStack )
-	#@rowcoltoxy jsrS		( convert row and col to xy ) 
+	rowcoltoxy
 	_@screen/yposition bsoS
 	_@screen/xposition bsoS
 
 	stsR 					( move char from rStack )
-	#@fontoffset jsrS #@font/monomini addS
+	fontoffset #@font/monomini addS
 	_@screen/addr bsoS
 
 	#1 _@screen/dma bso		( start dma transfer of 64 bits from addr )
@@ -132,7 +146,7 @@ jmpSR
 
 	( circular buffer maxes out at #20 )
 	#@keybuf_count lda 
-	#@keybuf_max lda $@gre jsr $@push_keybuf_skip jnz
+	#@keybuf_max lda >= $@push_keybuf_skip jnz
 	#@keybuf_count lda #1 add 
 	#@keybuf_count sta
 	@push_keybuf_skip
@@ -140,12 +154,10 @@ jmpSR
 
 ( greater than or equal )
 @gre ( n n - result )
-	dupS lst $@gre_eqskip jnz
-	equ $@gre_end jmp
+	lst $@gre_eqskip jnz
+	#1 jmpSR
 	@gre_eqskip
-	popS #0
-	@gre_end
-jmpSR
+	#0 jmpSR
 
 @pop_keybuf ( -- char )
 	#@keybuf_count lda dup #0 equ $@pop_keybuf_skip jnz 
@@ -157,34 +169,11 @@ jmpSR
 	dup #@keybufptr sta 			( store the pointer )
 	add 							( offset keybuf by pointer )
 	lda								( load the value at the offset onto pStack ) 
-	$@pop_keybuf_end jmp ( gross )	
+	jmpSR
 	@pop_keybuf_skip
 	pop
-	@pop_keybuf_end
 jmpSR
 
-( useful for turning two bytes into two shorts if c and d are 0 )
-@prezip ( a b c d -- c a d b )
-	swp swpS rot rot swpS
-jmpSR
-
-@fontoffset ( ascii -- offset )
-	#0 swp	( turn byte into short )
-	#30 shiS		
-jmpSR
-
-@rowcoltoxy ( col row -- x y ) ( bb -- ss )
-	#0 #0 #@prezip jsrS
-	( screen resolution is 640x480. Each cell in grid is 8x8. So x is 8*col and y is 8*row )
-	#30 shiS swpS
-	#30 shiS
-jmpSR
-
-@dot ( col x y -- )
-	_@screen/yposition bsoS
-	_@screen/xposition bsoS 
-	_@screen/clut bso	 
-jmpSR
 
 (chars are at 0x400 + ascii*8 )
 ^400 @font/monomini
