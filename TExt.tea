@@ -16,10 +16,12 @@
 ^C3 @keybuf ( keybuf_max * byte keyboard buffer )
 
 ( macro definitions )
-%>= { $@gre jsr }
+%>= { #@gre jsrS }
 
 ( useful for turning two bytes into two shorts if c and d are 0 )
 %prezip { swp swpS rot rot swpS } ( a b c d -- c a d b )
+
+%2dupS { ovrS ovrS } ( aS bS -- aS bS aS bS ) 
 
 %setpixel { _@screen/yposition bsoS _@screen/xposition bsoS _@screen/clut bso } ( col x y -- )
 
@@ -68,13 +70,18 @@
 
 		@main_skip_delete
 		
-		#0D neq $@main_skip_enter jnz
+		dup #0D neq $@main_skip_enter jnz
+		pop ( remove extra unneeded char copy )
 		( set col to end and advance, which causes it to move to the next line. )
 		pop #4F 
 		#1 $@advancecursor jsr
 		$@main_skip_keybuf jmp
 
 		@main_skip_enter
+
+		#1B neq $@main_skip_esc jnz
+		#0005 #0003 #0006 #0004 #02 #@line jsrS
+		@main_skip_esc 
 
 		@main_skip_keybuf
 
@@ -174,6 +181,62 @@ jmpSR
 	pop
 jmpSR
 
+@deltax ( x0S x1S -- dxS )
+	2dupS swpS lstS $@deltax_skipswap jnz
+	swpS
+	@deltax_skipswap
+	subS
+jmpSR
+
+@deltay ( y0S y1S -- dyS )
+	2dupS lstS $@deltax_skipswap jnz
+	swpS
+	@deltax_skipswap
+	subS
+jmpSR
+
+@line ( x0S y0S x1S y1S c -- ) 
+	( move pixel color to local variable )
+	$@line_col str
+
+	( copy source and destination coords to local variables )
+	$@line_y1 strS $@line_x1 strS $@line_y0 strS $@line_x0 strS	
+
+	$@line_x0 ldrS $@line_x1 ldrS 
+
+	( sx = x0 < x1 ? 1 : -1 )
+	2dupS lstS $@line_sx str
+
+	( calculate delta x )
+	$@deltax jsr
+
+	( load y0 and y1 )
+	$@line_y0 ldrS $@line_y1 ldrS 
+
+	( sy = y0 < y1 ? 1 : -1 )
+	2dupS lstS $@line_sy str
+
+	( calculate delta y )
+	$@deltay jsr
+
+	( calculate err )
+	2dupS addS 
+	swpS  
+	$@line_dy strS	
+	swpS
+	$@line_dx strS	
+
+	$@line_col ldr $@line_x0 ldrS $@line_y0 ldrS
+	@line_loop
+	setpixel			
+	@line_end
+jmpSR
+( x0S y0S errS ) 
+( errS x0S y0S x0S y0S c ) 
+
+( variables )
+@line_col &1 @line_x0 &2 @line_y0 &2 @line_y1 &2 @line_x1 &2
+@line_dx &2 @line_dy &2 @line_sx &1 @line_sy &1
 
 (chars are at 0x400 + ascii*8 )
 ^400 @font/monomini
