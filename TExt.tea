@@ -83,7 +83,7 @@
 
 		#1B neq $@main_skip_esc jnz
 		popS popS
-		#0005 #0003 #000A #0008 #02 #@line jsrS
+		#0005 #0003 #000F #0008 #02 #@line jsrS
 		@main_skip_esc 
 
 		@main_skip_keybuf
@@ -235,7 +235,7 @@ jmpSR
 	swpS  
 	#@line_dy staS	
 	swpS
-	$@line_dx strS	
+	#@line_dx staS	
 
 	$@line_col ldr $@line_x0 ldrS $@line_y0 ldrS
 	stsSC stsSC 	( copy y and x to rStack )
@@ -254,11 +254,14 @@ jmpSR
 		@line_yskip popS	( pop unused dy )
 		@line_ystep
 
-		swpS $@line_dx ldrS dupS 
-		rotS <?S $@line_loopend jnz 	( if dx < err2 skip y increment )
+		swpS $@line_dx ldrS dupS ( dup too many when skipping ? ) 
+		rotS <?S $@line_xskip jnz 	( if dx < err2 skip y increment )
 		addS ( err += dx )
 		swpSR stsSR #0 #@line_sy lda addS		( y += sy )
 		stsS ( put y back on rStack for next iter )
+		$@line_loopend jmp
+		@line_xskip popS swpSR	( pop unused dx )
+
 		@line_loopend
 		$@line_col ldr swpSR stsSRC stsSRC 
 		$@line_loop jmp
