@@ -18,6 +18,8 @@
 ( macro definitions )
 %>= { #@gre jsrS }
 
+%<?S { subS #8000 andS #8000 equS }
+
 ( useful for turning two bytes into two shorts if c and d are 0 )
 %prezip { swp swpS rot rot swpS } ( a b c d -- c a d b )
 
@@ -43,7 +45,7 @@
 	@main_toploop
 
 		( check the keybuf_count being > 0 )
-		#@keybuf_count lda #0 equ $@main_skip_keybuf jnz
+		#@keybuf_count lda #0 equ #@main_skip_keybuf jnzS
 		
 		dupS ( keep copy of row and col before calling drawchar )
 		#@pop_keybuf jsrS
@@ -80,12 +82,13 @@
 		@main_skip_enter
 
 		#1B neq $@main_skip_esc jnz
-		#0005 #0003 #0006 #0004 #02 #@line jsrS
+		popS popS
+		#0005 #0003 #000A #0008 #02 #@line jsrS
 		@main_skip_esc 
 
 		@main_skip_keybuf
 
-	$@main_toploop jmp
+	#@main_toploop jmpS
 	brk
 
 @advancecursor ( row col stepval -- newrow newcol )
@@ -195,26 +198,34 @@ jmpSR
 	subS
 jmpSR
 
+( Bresenham line drawing algorithm )
 @line ( x0S y0S x1S y1S c -- ) 
 	( move pixel color to local variable )
-	$@line_col str
+	#@line_col sta
 
 	( copy source and destination coords to local variables )
-	$@line_y1 strS $@line_x1 strS $@line_y0 strS $@line_x0 strS	
+	#@line_y1 staS #@line_x1 staS #@line_y0 staS #@line_x0 staS	
 
-	$@line_x0 ldrS $@line_x1 ldrS 
+	#@line_x0 ldaS #@line_x1 ldaS 
 
 	( sx = x0 < x1 ? 1 : -1 )
-	2dupS lstS $@line_sx str
+	2dupS lstS #01 swp $@line_sx_lst jnz
+	#FF
+	@line_sx_lst
+	 #@line_sx sta
 
 	( calculate delta x )
 	$@deltax jsr
 
 	( load y0 and y1 )
-	$@line_y0 ldrS $@line_y1 ldrS 
+	#@line_y0 ldaS #@line_y1 ldaS 
 
 	( sy = y0 < y1 ? 1 : -1 )
-	2dupS lstS $@line_sy str
+	2dupS lstS #1 swp $@line_sy_lst jnz
+	#FF
+	@line_sy_lst
+
+	#@line_sy sta
 
 	( calculate delta y )
 	$@deltay jsr
@@ -222,17 +233,40 @@ jmpSR
 	( calculate err )
 	2dupS addS 
 	swpS  
-	$@line_dy strS	
+	#@line_dy staS	
 	swpS
 	$@line_dx strS	
 
 	$@line_col ldr $@line_x0 ldrS $@line_y0 ldrS
+	stsSC stsSC 	( copy y and x to rStack )
 	@line_loop
-	setpixel			
+		setpixel			( 0x02E0 )
+		( split into two so we only check second part if x == x1. )
+		stsSRC $@line_x1 ldrS equS ovrSR
+		( stsSRC ) stsSR $@line_y1 ldrS equS and $@line_end jnz
+		dupS #0002 mulS ( err2 )
+		( if err2 >= dy then increment )
+		$@line_dy ldrS 2dupS <?S $@line_yskip jnz
+		rotS addS ( err += dy )	
+		stsSR #0 $@line_sx ldr addS		( x += sx )	
+		stsS ( put x back on rStack for next iter )
+		$@line_ystep jmp
+		@line_yskip popS	( pop unused dy )
+		@line_ystep
+
+		swpS $@line_dx ldrS dupS 
+		rotS <?S $@line_loopend jnz 	( if dx < err2 skip y increment )
+		addS ( err += dx )
+		swpSR stsSR #0 #@line_sy lda addS		( y += sy )
+		stsS ( put y back on rStack for next iter )
+		@line_loopend
+		$@line_col ldr swpSR stsSRC stsSRC 
+		$@line_loop jmp
+
 	@line_end
+	popS		( remove the errS )
+	popSR popSR ( remove x and y from rStack )
 jmpSR
-( x0S y0S errS ) 
-( errS x0S y0S x0S y0S c ) 
 
 ( variables )
 @line_col &1 @line_x0 &2 @line_y0 &2 @line_y1 &2 @line_x1 &2
