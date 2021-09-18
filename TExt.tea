@@ -82,8 +82,8 @@
 		@main_skip_enter
 
 		#1B neq $@main_skip_esc jnz
+brk ( why are there two shorts on the stack at this point?! )
 		popS popS
-		#@dugo jsrS
 		@main_skip_esc 
 
 		@main_skip_keybuf
@@ -184,108 +184,6 @@ jmpSR
 	pop
 jmpSR
 
-@dugo ( -- )
-	#0005 #0003 #027F #0008 #02 #@line jsrS 
-	#0005 #0003 #027F #0043 #02 #@line jsrS 
-	#0005 #0003 #027F #0086 #02 #@line jsrS 
-	#0005 #0003 #027F #010A #02 #@line jsrS 
-	#0005 #0003 #027F #01dF #02 #@line jsrS 
-jmpSR
-
-( always subtract the smaller from the bigger )
-@deltax ( x0S x1S -- dxS )
-	2dupS swpS lstS $@deltax_skipswap jnz
-	swpS
-	@deltax_skipswap
-	subS
-jmpSR
-
-@deltay ( y0S y1S -- dyS )
-	( 2dupS lstS $@deltax_skipswap jnz )
-	swpS 2dupS lstS $@deltax_skipswap jnz
-	swpS
-	@deltax_skipswap
-	subS
-jmpSR
-
-( Bresenham line drawing algorithm )
-@line ( x0S y0S x1S y1S c -- ) 
-	( move pixel color to local variable )
-	#@line_col sta
-
-	( copy source and destination coords to local variables )
-	#@line_y1 staS #@line_x1 staS #@line_y0 staS #@line_x0 staS	
-
-	#@line_x0 ldaS #@line_x1 ldaS 
-
-	( sx = x0 < x1 ? 1 : -1 )
-	2dupS lstS #0001 rot $@line_sx_lst jnz
-	popS #FFFF
-	@line_sx_lst
-	#@line_sx staS
-
-	( calculate delta x )
-	$@deltax jsr
-
-	( load y0 and y1 )
-	#@line_y0 ldaS #@line_y1 ldaS 
-
-	( sy = y0 < y1 ? 1 : -1 )
-	2dupS lstS #0001 rot $@line_sy_lst jnz
-	popS #FFFF
-	@line_sy_lst
-
-	#@line_sy staS
-
-	( calculate delta y )
-	$@deltay jsr
-
-	( calculate err )
-	2dupS addS 
-	swpS  
-	#@line_dy staS	
-	swpS
-	#@line_dx staS	
-
-	$@line_col ldr $@line_x0 ldrS $@line_y0 ldrS
-	stsSC stsSC 	( copy y and x to rStack )
-	@line_loop
-		setpixel	
-		( split into two so we only check second part if x == x1. )
-		stsSRC $@line_x1 ldrS equS ovrSR
-		( stsSRC ) stsSR $@line_y1 ldrS equS and $@line_end jnz
-		dupS #0002 mulS ( err2 )
-		( if err2 >= dy then increment )
-		$@line_dy ldrS 2dupS <?S $@line_yskip jnz
-		rotS addS ( err += dy )	
-
-		stsSR $@line_sx ldrS addS		( x += sx )	
-		stsS ( put x back on rStack for next iter )
-		$@line_ystep jmp
-		@line_yskip popS	( pop unused dy )
-		@line_ystep
-
-		swpS $@line_dx ldrS dupS ( dup too many when skipping ? ) 
-		rotS <?S $@line_xskip jnz 	( if dx < err2 skip y increment )
-		addS ( err += dx )
-		swpSR stsSR #@line_sy ldaS addS		( y += sy )
-		stsS ( put y back on rStack for next iter )
-		$@line_loopend jmp
-		@line_xskip popS swpSR	( pop unused dx )
-
-		@line_loopend
-		$@line_col ldr swpSR stsSRC stsSRC 
-
-		$@line_loop jmp
-
-	@line_end
-	popS		( remove the errS )
-	popSR popSR ( remove x and y from rStack )
-jmpSR
-
-( variables )
-@line_col &1 @line_x0 &2 @line_y0 &2 @line_y1 &2 @line_x1 &2
-@line_dx &2 @line_dy &2 @line_sx &2 @line_sy &2
 
 (chars are at 0x400 + ascii*8 )
 ^400 @font/monomini
