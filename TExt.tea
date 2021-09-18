@@ -57,16 +57,16 @@
 		#@drawchar jsrS 
 		
 		( increment the columns and rows as characters are printed. )
-		#1 $@advancecursor jsr
+		#1 #@advancecursor jsrS
 
-		$@main_skip_keybuf jmp	
+		#@main_skip_keybuf jmpS
 
 		( handle control characters )
 		@main_doctrl
 		dup #7F neq $@main_skip_delete jnz
 		pop ( remove extra unneeded char copy )
 		( move back and draw a space )	
-		#FF $@advancecursor jsr
+		#FF #@advancecursor jsrS
 		dupS #20 #@drawchar jsrS 
 		$@main_skip_keybuf jmp
 
@@ -83,7 +83,7 @@
 
 		#1B neq $@main_skip_esc jnz
 		popS popS
-		#0005 #0003 #000F #0008 #02 #@line jsrS
+		#@dugo jsrS
 		@main_skip_esc 
 
 		@main_skip_keybuf
@@ -184,6 +184,15 @@ jmpSR
 	pop
 jmpSR
 
+@dugo ( -- )
+	#0005 #0003 #000A #0008 #02 #@line jsrS 
+	#000A #0008 #0005 #0003 #02 #@line jsrS 
+	#0005 #0003 #003F #0036 #02 #@line jsrS 
+	#0005 #0003 #003F #003A #02 #@line jsrS 
+	#0005 #0003 #003F #003D #02 #@line jsrS 
+jmpSR
+
+( always subtract the smaller from the bigger )
 @deltax ( x0S x1S -- dxS )
 	2dupS swpS lstS $@deltax_skipswap jnz
 	swpS
@@ -192,7 +201,8 @@ jmpSR
 jmpSR
 
 @deltay ( y0S y1S -- dyS )
-	2dupS lstS $@deltax_skipswap jnz
+	( 2dupS lstS $@deltax_skipswap jnz )
+	swpS 2dupS lstS $@deltax_skipswap jnz
 	swpS
 	@deltax_skipswap
 	subS
@@ -209,10 +219,10 @@ jmpSR
 	#@line_x0 ldaS #@line_x1 ldaS 
 
 	( sx = x0 < x1 ? 1 : -1 )
-	2dupS lstS #01 swp $@line_sx_lst jnz
-	#FF
+	2dupS lstS #0001 rot $@line_sx_lst jnz
+	popS #FFFF
 	@line_sx_lst
-	 #@line_sx sta
+	#@line_sx staS
 
 	( calculate delta x )
 	$@deltax jsr
@@ -221,11 +231,11 @@ jmpSR
 	#@line_y0 ldaS #@line_y1 ldaS 
 
 	( sy = y0 < y1 ? 1 : -1 )
-	2dupS lstS #1 swp $@line_sy_lst jnz
-	#FF
+	2dupS lstS #0001 rot $@line_sy_lst jnz
+	popS #FFFF
 	@line_sy_lst
 
-	#@line_sy sta
+	#@line_sy staS
 
 	( calculate delta y )
 	$@deltay jsr
@@ -240,7 +250,7 @@ jmpSR
 	$@line_col ldr $@line_x0 ldrS $@line_y0 ldrS
 	stsSC stsSC 	( copy y and x to rStack )
 	@line_loop
-		setpixel			( 0x02E0 )
+		setpixel	
 		( split into two so we only check second part if x == x1. )
 		stsSRC $@line_x1 ldrS equS ovrSR
 		( stsSRC ) stsSR $@line_y1 ldrS equS and $@line_end jnz
@@ -248,7 +258,8 @@ jmpSR
 		( if err2 >= dy then increment )
 		$@line_dy ldrS 2dupS <?S $@line_yskip jnz
 		rotS addS ( err += dy )	
-		stsSR #0 $@line_sx ldr addS		( x += sx )	
+( if sx is negative we should prefix with ff not 00 ! )
+		stsSR $@line_sx ldrS addS		( x += sx )	
 		stsS ( put x back on rStack for next iter )
 		$@line_ystep jmp
 		@line_yskip popS	( pop unused dy )
@@ -257,13 +268,14 @@ jmpSR
 		swpS $@line_dx ldrS dupS ( dup too many when skipping ? ) 
 		rotS <?S $@line_xskip jnz 	( if dx < err2 skip y increment )
 		addS ( err += dx )
-		swpSR stsSR #0 #@line_sy lda addS		( y += sy )
+		swpSR stsSR #@line_sy ldaS addS		( y += sy )
 		stsS ( put y back on rStack for next iter )
 		$@line_loopend jmp
 		@line_xskip popS swpSR	( pop unused dx )
 
 		@line_loopend
 		$@line_col ldr swpSR stsSRC stsSRC 
+
 		$@line_loop jmp
 
 	@line_end
@@ -273,7 +285,7 @@ jmpSR
 
 ( variables )
 @line_col &1 @line_x0 &2 @line_y0 &2 @line_y1 &2 @line_x1 &2
-@line_dx &2 @line_dy &2 @line_sx &1 @line_sy &1
+@line_dx &2 @line_dy &2 @line_sx &2 @line_sy &2
 
 (chars are at 0x400 + ascii*8 )
 ^400 @font/monomini
