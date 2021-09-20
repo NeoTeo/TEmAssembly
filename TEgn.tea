@@ -8,6 +8,11 @@
 ^2E @screen/clut
 ^2F @screen/dma
 
+^90 @mouse/vector
+^92 @mouse/x
+^94 @mouse/y
+^96 @mouse/bstate
+
 ^B0 @IME 01 ( enable interrupts )
 
 ^C0 @keybufptr 0 
@@ -39,7 +44,7 @@
 ( a character is 8 x 8 bits )
 @main
 	#@convec _@console/vector bsoS ( set the console interrupt vector ) 
-
+	#@mousevec _@mouse/vector bsoS ( set the mouse interrupt vector ) 
 	#0000	( row and col inited )
 	( infinite loop )
 	@main_toploop
@@ -120,6 +125,14 @@ jmpSR
 	_@screen/addr bsoS
 
 	#1 _@screen/dma bso		( start dma transfer of 64 bits from addr )
+jmpSR
+
+( mouse input interrupt handler )
+@mousevec
+	_@mouse/x bsiS popS	
+	_@mouse/y bsiS popS	
+
+	#1 #@IME sta (re-enable interrupts )
 jmpSR
 
 ( console input interrupt handler )
