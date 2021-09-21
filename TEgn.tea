@@ -8,10 +8,7 @@
 ^2E @screen/clut
 ^2F @screen/dma
 
-^90 @mouse/vector
-^92 @mouse/x
-^94 @mouse/y
-^96 @mouse/bstate
+^90 @mouse/vector &2 @mouse/x &2 @mouse/y &2 @mouse/bstate
 
 ^B0 @IME 01 ( enable interrupts )
 
@@ -23,6 +20,7 @@
 ( macro definitions )
 %>= { #@gre jsrS }
 
+( a less-than that interprets values as signed )
 %<?S { subS #8000 andS #8000 equS }
 
 ( useful for turning two bytes into two shorts if c and d are 0 )
@@ -30,7 +28,7 @@
 
 %2dupS { ovrS ovrS } ( aS bS -- aS bS aS bS ) 
 
-%setpixel { _@screen/yposition bsoS _@screen/xposition bsoS _@screen/clut bso } ( col x y -- )
+%setpixel { _@screen/yposition bsoS _@screen/xposition bsoS _@screen/clut bso } ( col xS yS -- )
 
 %fontoffset { #0 swp ( turn byte into short ) #30 shiS }
 
@@ -129,8 +127,21 @@ jmpSR
 
 ( mouse input interrupt handler )
 @mousevec
-	_@mouse/x bsiS popS	
-	_@mouse/y bsiS popS	
+	( only draw when a mouse button is down )
+	_@mouse/bstate bsi dup #00 equ $@mousevec_skipdraw jnz
+	( default color is #2 )
+	#2 swp #10 equ $@mousevec_defaultc jnz
+	pop #0 
+	@mousevec_defaultc
+
+	_@mouse/x bsiS
+	_@mouse/y bsiS
+	setpixel
+	$@mousevec_done jmp
+	@mousevec_skipdraw
+
+	pop ( remove unused bstate duplicate )
+	@mousevec_done
 
 	#1 #@IME sta (re-enable interrupts )
 jmpSR
