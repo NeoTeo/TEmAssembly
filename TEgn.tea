@@ -112,13 +112,33 @@ jmpSR
 	@step_end
 jmpSR
 
-@drawchar ( row col char -- ) ( bbb )
-	sts						( put the char onto the rStack )
+@drawpointer ( xposS yposS -- )
+	#@pointer/x ldaS
+	#@pointer/y ldaS
+
+	_@screen/yposition bsoS
+	_@screen/xposition bsoS
+	#@pointer/clear
+	_@screen/addr bsoS			( set dma address )
+	#41 _@screen/dma bso		( start dma transfer of 64 bits to fg: bit 1, to foreground layer: bit 7 )
+
+	2dupS 	( duplicate the new position )
+	#@pointer/y staS
+	#@pointer/x staS
+
+	_@screen/yposition bsoS
+	_@screen/xposition bsoS
+	 #@pointer/xhair 
+	_@screen/addr bsoS			( set dma address )
+	#41 _@screen/dma bso		( start dma transfer of 64 bits to fg: bit 1, to foreground layer: bit 7 )
+jmpSR
+
+@drawchar ( row col char -- )
+	rot rot
 	rowcoltoxy
 	_@screen/yposition bsoS
 	_@screen/xposition bsoS
 
-	stsR 					( move char from rStack )
 	fontoffset #@font/monomini addS
 	_@screen/addr bsoS
 
@@ -127,6 +147,11 @@ jmpSR
 
 ( mouse input interrupt handler )
 @mousevec
+
+	_@mouse/x bsiS
+	_@mouse/y bsiS
+	#@drawpointer jsrS
+
 	( only draw when a mouse button is down )
 	_@mouse/bstate bsi dup #00 equ $@mousevec_skipdraw jnz
 	( default color is #2 )
@@ -310,6 +335,12 @@ jmpSR
 ( variables )
 @line_col &1 @line_x0 &2 @line_y0 &2 @line_y1 &2 @line_x1 &2
 @line_dx &2 @line_dy &2 @line_sx &2 @line_sy &2
+
+^300 @pointer/xhair
+10 10 00 D6 00 10 10 00
+^308 @pointer/clear
+00 00 00 00 00 00 00 00
+^310 @pointer/x 00 00 @pointer/y 00 00 
 
 (chars are at 0x400 + ascii*8 )
 ^400 @font/monomini
