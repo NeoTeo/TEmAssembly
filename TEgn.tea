@@ -32,6 +32,7 @@
 
 %fontoffset { #0 swp ( turn byte into short ) #30 shiS }
 
+
 ( convert row and col to xy ) 
 ( screen resolution is 640x480. Each cell in grid is 8x8. So x is 8*col and y is 8*row )
 %rowcoltoxy { #0 #0 prezip #30 shiS swpS  #30 shiS } ( col row -- x y ) ( bb -- ss )
@@ -46,6 +47,8 @@
 	#0000	( row and col inited )
 	( infinite loop )
 	@main_toploop
+
+( TODO check for mouse events in the mouse buffer and move the pointer accordingly )
 
 		( check the keybuf_count being > 0 )
 		#@keybuf_count lda #0 equ #@main_skip_keybuf jnzS
@@ -112,7 +115,27 @@ jmpSR
 	@step_end
 jmpSR
 
+( leave smallest of the two values on stack )
+@minS ( aS bS -- rS )
+	2dupS <?S $@minS_skipswap jnz
+	swpS
+	@minS_skipswap 
+	popS
+jmpSR
+
+@maxS ( aS bS -- rS )
+	2dupS <?S #0 equ $@maxS_skipswap jnz
+	swpS
+	@maxS_skipswap 
+	popS
+jmpSR
+
 @drawpointer ( xposS yposS -- )
+	swpS
+	#0000 #@maxS jsrS
+	swpS
+	#0000 #@maxS jsrS
+
 	#@pointer/x ldaS
 	#@pointer/y ldaS
 
@@ -146,10 +169,11 @@ jmpSR
 jmpSR
 
 ( mouse input interrupt handler )
+( should just put mouse events into buffer )
 @mousevec
 
-	_@mouse/x bsiS
-	_@mouse/y bsiS
+	_@mouse/x bsiS #0003 subS
+	_@mouse/y bsiS #0003 subS
 	#@drawpointer jsrS
 
 	( only draw when a mouse button is down )
@@ -336,16 +360,16 @@ jmpSR
 @line_col &1 @line_x0 &2 @line_y0 &2 @line_y1 &2 @line_x1 &2
 @line_dx &2 @line_dy &2 @line_sx &2 @line_sy &2
 
-^300 @pointer/xhair
+^500 @pointer/xhair
 10 10 00 D6 00 10 10 00
-^308 @pointer/clear
+^508 @pointer/clear
 00 00 00 00 00 00 00 00
-^310 @pointer/x 00 00 @pointer/y 00 00 
+^510 @pointer/x 00 00 @pointer/y 00 00 
 
-(chars are at 0x400 + ascii*8 )
-^400 @font/monomini
-( unprintable ascii from 0x400 to 0x41F )
-^500 
+(chars are at 0x500 + ascii*8 )
+^500 @font/monomini
+( unprintable ascii from 0x500 to 0x51F )
+^600 
 00 00 00 00 00 00 00 00 ( space )
 00 10 10 10 00 10 00 00 ( ! )
 00 12 24 00 00 00 00 00 ( " )
