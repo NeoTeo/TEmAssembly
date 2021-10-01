@@ -223,7 +223,7 @@ jmpSR
 	add ( offset keybuf by pointer )
 	sta ( store key in keybuf )
 
-	stsR #@keybuf_max lda $@inc_ring jsr	( debug small buf )
+	stsR #@keybuf_max lda $@inc_ring jsr
 
 	#@keybufptr sta ( store the incremented pointer )
 
@@ -258,10 +258,6 @@ jmpSR
 jmpSR
 
 @dugo ( -- )
-	#0005 #0003 #027F #0008 #02 #@line jsrS 
-	#0005 #0003 #027F #0043 #02 #@line jsrS 
-	#0005 #0003 #027F #0086 #02 #@line jsrS 
-	#0005 #0003 #027F #010A #02 #@line jsrS 
 	#0005 #0003 #027F #01dF #02 #@line jsrS 
 jmpSR
 
@@ -358,7 +354,7 @@ jmpSR
 
 ( variables )
 @line_col &1 @line_x0 &2 @line_y0 &2 @line_y1 &2 @line_x1 &2
-@line_dx &2 @line_dy &2 @line_sx &2 @line_sy &2
+@line_dx &2 @line_dy &2 @line_sx &2 @line_sy 
 
 ^500 @pointer/xhair
 10 10 00 D6 00 10 10 00
