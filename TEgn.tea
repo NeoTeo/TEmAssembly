@@ -177,13 +177,13 @@ jmpSR
 ( should just put mouse events into buffer )
 @mousevec
 
+(	_@mouse/x bsiS _@mouse/y bsiS #@push_cposbuf jsrS )
+
 	_@mouse/x bsiS #0003 subS
 	_@mouse/y bsiS #0003 subS
 	#@drawpointer jsrS
 
-	( only draw when a mouse button is down )
 	_@mouse/bstate bsi dup #00 equ $@mousevec_skipdraw jnz
-	( default color is #2 )
 	#2 swp #10 equ $@mousevec_defaultc jnz
 	pop #0 
 	@mousevec_defaultc
@@ -194,17 +194,40 @@ jmpSR
 	$@mousevec_done jmp
 	@mousevec_skipdraw
 
-	pop ( remove unused bstate duplicate )
+	pop 
 	@mousevec_done
 
 	#1 #@IME sta (re-enable interrupts )
+jmpSR
+
+@pointer_draw ( xS yS -- )
+	stsSC swpS stsSC	( copy yS and xS to rStack )	
+	#0003 subS swpS 
+	#0003 subS 
+	#@drawpointer jsrS
+
+	( only draw when a mouse button is down )
+	_@mouse/bstate bsi dup #00 equ $@pointer_draw_skipdraw jnz
+	( default color is #2 )
+	#2 swp #10 equ $@pointer_draw_defaultc jnz
+	pop #0 
+	@pointer_draw_defaultc
+
+	( retrieve xS and yS from rStack )
+	stsSR stsSR
+	setpixel
+	$@pointer_draw_done jmp
+	@pointer_draw_skipdraw
+
+	pop ( remove unused bstate duplicate )
+	@pointer_draw_done
 jmpSR
 
 ( console input interrupt handler )
 @convec
 	_@console/read bsi	
 	
-	$@push_keybuf jsr	
+	#@push_keybuf jsrS
 	#1 #@IME sta (re-enable interrupts )
 jmpSR
 
@@ -225,28 +248,35 @@ jmpSR
 @push_cposbuf ( xS yS -- )
 	#@cposbuf #@cposbuf_offset lda stsC			( load the cposbuf_offset and copy to rStack )
 	#20 shi add	swpS ovrS staS					( offset cposbuf by cposbuf_offset * 4 to account for two shorts per entry )
-	#2 + staS									( store two shorts in buffer at calculated position )
+	#2 add staS									( store two shorts in buffer at calculated position )
 	( empty pStack )
 	#@cposbuf_max lda stsR ovr #@inc_ring jsrS	( get offset from rStack and calculate next offset )
 	#@cposbuf_offset sta						( store the new offset )
 
 	( increment counter if less than max )
 	#@cposbuf_count lda dup rot
-	lst 0 equ $@push_cposbuf_skip jnz				( increment counter if count is less than max ) 
+	>= $@push_cposbuf_skip jnz					( increment counter if count is less than max ) 
 	#1 add
 	#@cposbuf_count sta	
 	@push_cposbuf_skip
 	
 jmpSR
-(p: x0 x1 y0 y1 cposbuf0 cposbuf1 cposbuf_offset / r: cposbuf_offset )
-(p: x0 x1 y0 y1 cposbuf0 cposbuf1 / r: cposbuf_offset )
-(p: x0 x1 cposbuf0 cposbuf1 / r: cposbuf_offset )
-(p: / r: cposbuf_offset )
-(p: cposbuf_max / r: )
-(p: cposbuf_max new_cposbuf_offset / r: )
-(p: cposbuf_max / r: )
-(p: cposbuf_count cposbuf_count cposbuf_max / r: )
-(p: cposbuf_count+1 / r: )
+
+@pop_cposbuf ( -- xS yS )
+	( just return if the buffer is empty )
+	#@cposbuf_count lda dup #0 equ $@pop_cposbuf_skip jnz
+	( reduce count and store it )
+	#1 sub #@cposbuf_count sta
+
+	#@cposbuf
+	#@cposbuf_offset lda #@cposbuf_max lda #@dec_ring jsrS
+	dup #@cposbuf_offset sta				( store the new offset )
+	#20 shi add dupS ldaS swpS					( add offset * 4 to buffer address to account for 2 short per entry to load yS )
+	#2 add ldaS 								( load xS )
+	jmpSR									( return )	
+	@pop_cposbuf_skip
+	pop										( drop unused count duplicate )
+jmpSR
 
 @push_keybuf ( val -- )
 
@@ -282,7 +312,9 @@ jmpSR
 jmpSR
 
 @dugo ( -- )
-	#0005 #0003 #027F #01dF #02 #@line jsrS 
+	( #0005 #0003 #027F #01dF #02 #@line jsrS )
+	#0042 #0069 #@push_cposbuf jsrS
+	#@pop_cposbuf jsrS
 jmpSR
 
 ( always subtract the smaller from the bigger )
@@ -387,9 +419,9 @@ jmpSR
 ^510 @pointer/x 00 00 @pointer/y 00 00 
 
 (chars are at 0x500 + ascii*8 )
-^500 @font/monomini
+^600 @font/monomini
 ( unprintable ascii from 0x500 to 0x51F )
-^600 
+^700 
 00 00 00 00 00 00 00 00 ( space )
 00 10 10 10 00 10 00 00 ( ! )
 00 12 24 00 00 00 00 00 ( " )
