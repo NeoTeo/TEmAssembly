@@ -55,6 +55,12 @@
 
 ( TODO check for mouse events in the mouse buffer and move the pointer accordingly )
 
+		#@cposbuf_count lda #0 equ #@main_skip_cposbuf jnzS
+		#@pop_cposbuf jsrS
+		#@pointer_draw jsrS
+		
+		@main_skip_cposbuf
+
 		( check the keybuf_count being > 0 )
 		#@keybuf_count lda #0 equ #@main_skip_keybuf jnzS
 		
@@ -177,8 +183,8 @@ jmpSR
 ( should just put mouse events into buffer )
 @mousevec
 
-(	_@mouse/x bsiS _@mouse/y bsiS #@push_cposbuf jsrS )
-
+	_@mouse/x bsiS _@mouse/y bsiS #@push_cposbuf jsrS 
+(
 	_@mouse/x bsiS #0003 subS
 	_@mouse/y bsiS #0003 subS
 	#@drawpointer jsrS
@@ -196,30 +202,32 @@ jmpSR
 
 	pop 
 	@mousevec_done
-
+)
 	#1 #@IME sta (re-enable interrupts )
 jmpSR
 
 @pointer_draw ( xS yS -- )
+
 	stsSC swpS stsSC	( copy yS and xS to rStack )	
-	#0003 subS swpS 
+	#0003 subS swpS 	( offset pointer image by 3 in x and y so its center is a the mouse position )
 	#0003 subS 
 	#@drawpointer jsrS
 
 	( only draw when a mouse button is down )
 	_@mouse/bstate bsi dup #00 equ $@pointer_draw_skipdraw jnz
+
 	( default color is #2 )
 	#2 swp #10 equ $@pointer_draw_defaultc jnz
 	pop #0 
-	@pointer_draw_defaultc
 
-	( retrieve xS and yS from rStack )
-	stsSR stsSR
+	@pointer_draw_defaultc
+	stsSR stsSR							( retrieve xS and yS from rStack )
 	setpixel
 	$@pointer_draw_done jmp
-	@pointer_draw_skipdraw
 
-	pop ( remove unused bstate duplicate )
+	@pointer_draw_skipdraw
+	popSR popSR							( remove unused coordinates duplicates )
+	pop 								( remove unused bstate duplicate )
 	@pointer_draw_done
 jmpSR
 
@@ -273,6 +281,7 @@ jmpSR
 	dup #@cposbuf_offset sta				( store the new offset )
 	#20 shi add dupS ldaS swpS					( add offset * 4 to buffer address to account for 2 short per entry to load yS )
 	#2 add ldaS 								( load xS )
+	swpS
 	jmpSR									( return )	
 	@pop_cposbuf_skip
 	pop										( drop unused count duplicate )
@@ -314,6 +323,12 @@ jmpSR
 @dugo ( -- )
 	( #0005 #0003 #027F #01dF #02 #@line jsrS )
 	#0042 #0069 #@push_cposbuf jsrS
+	#0021 #0034 #@push_cposbuf jsrS
+	#0010 #0017 #@push_cposbuf jsrS
+	#0005 #0008 #@push_cposbuf jsrS
+	#@pop_cposbuf jsrS
+	#@pop_cposbuf jsrS
+	#@pop_cposbuf jsrS
 	#@pop_cposbuf jsrS
 jmpSR
 
