@@ -12,13 +12,18 @@
 
 ^B0 @IME 01 ( enable interrupts )
 
-^C0 @keybufptr 0 
+^C0 @keybufptr 0  ( always points to an available position )
 ^C1 @keybuf_count 0
 ^C2 @keybuf_max 20 
 ^C3 @keybuf ( keybuf_max * byte keyboard buffer )
 
+^E3 @cposbuf_offset 0	( always points to an available position )
+^E4 @cposbuf_count 0
+^E5 @cposbuf_max 20
+^E6 @cposbuf ( each cursor position is 4 bytes; xS yS, so its size is cposbuf_max * 4 )
+
 ( macro definitions )
-%>= { #@gre jsrS }
+%>= { lst #0 equ } 
 
 ( a less-than that interprets values as signed )
 %<?S { subS #8000 andS #8000 equS }
@@ -217,13 +222,39 @@ jmpSR
 	swp pop
 jmpSR
 
+@push_cposbuf ( xS yS -- )
+	#@cposbuf #@cposbuf_offset lda stsC			( load the cposbuf_offset and copy to rStack )
+	#20 shi add	swpS ovrS staS					( offset cposbuf by cposbuf_offset * 4 to account for two shorts per entry )
+	#2 + staS									( store two shorts in buffer at calculated position )
+	( empty pStack )
+	#@cposbuf_max lda stsR ovr #@inc_ring jsrS	( get offset from rStack and calculate next offset )
+	#@cposbuf_offset sta						( store the new offset )
+
+	( increment counter if less than max )
+	#@cposbuf_count lda dup rot
+	lst 0 equ $@push_cposbuf_skip jnz				( increment counter if count is less than max ) 
+	#1 add
+	#@cposbuf_count sta	
+	@push_cposbuf_skip
+	
+jmpSR
+(p: x0 x1 y0 y1 cposbuf0 cposbuf1 cposbuf_offset / r: cposbuf_offset )
+(p: x0 x1 y0 y1 cposbuf0 cposbuf1 / r: cposbuf_offset )
+(p: x0 x1 cposbuf0 cposbuf1 / r: cposbuf_offset )
+(p: / r: cposbuf_offset )
+(p: cposbuf_max / r: )
+(p: cposbuf_max new_cposbuf_offset / r: )
+(p: cposbuf_max / r: )
+(p: cposbuf_count cposbuf_count cposbuf_max / r: )
+(p: cposbuf_count+1 / r: )
+
 @push_keybuf ( val -- )
 
 	#@keybuf #@keybufptr lda stsC ( load the keybuf pointer value and copy to rStack )
 	add ( offset keybuf by pointer )
 	sta ( store key in keybuf )
 
-	stsR #@keybuf_max lda $@inc_ring jsr
+	stsR #@keybuf_max lda #@inc_ring jsrS
 
 	#@keybufptr sta ( store the incremented pointer )
 
@@ -235,20 +266,13 @@ jmpSR
 	@push_keybuf_skip
 jmpSR
 
-( greater than or equal )
-@gre ( n n - result )
-	lst $@gre_eqskip jnz
-	#1 jmpSR
-	@gre_eqskip
-	#0 jmpSR
-
 @pop_keybuf ( -- char )
 	#@keybuf_count lda dup #0 equ $@pop_keybuf_skip jnz 
 	#1 sub #@keybuf_count sta
 
 	#@keybuf 
 	( keybufptr points to the next free pos so decrement first )
-	#@keybufptr lda #@keybuf_max lda $@dec_ring jsr
+	#@keybufptr lda #@keybuf_max lda #@dec_ring jsrS
 	dup #@keybufptr sta 			( store the pointer )
 	add 							( offset keybuf by pointer )
 	lda								( load the value at the offset onto pStack ) 
