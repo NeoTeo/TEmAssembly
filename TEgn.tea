@@ -14,13 +14,14 @@
 
 ^C0 @keybufptr 0  ( always points to an available position )
 ^C1 @keybuf_count 0
-^C2 @keybuf_max 20 
-^C3 @keybuf ( keybuf_max * byte keyboard buffer )
+^C2 @keybuf_max 14 
+^C3 @keybuf &14 ( keybuf_max * byte keyboard buffer )
 
 ^E3 @cposbuf_offset 0	( always points to an available position )
 ^E4 @cposbuf_count 0
-^E5 @cposbuf_max 20
-^E6 @cposbuf ( each cursor position is 4 bytes; xS yS, so its size is cposbuf_max * 4 )
+^E5 @cposbuf_max 5
+^E6 @cposbuf_prevpos &4
+^EA @cposbuf &14 ( each cursor position is 4 bytes; xS yS, so its size is cposbuf_max * 4 = 0x14)
 
 ( macro definitions )
 %>= { lst #0 equ } 
@@ -57,6 +58,7 @@
 
 		#@cposbuf_count lda #0 equ #@main_skip_cposbuf jnzS
 		#@pop_cposbuf jsrS
+		( compare new point with previous point and, if not adjacent, draw a line between them )
 		#@pointer_draw jsrS
 		
 		@main_skip_cposbuf
@@ -99,7 +101,7 @@
 		@main_skip_enter
 
 		#1B neq $@main_skip_esc jnz
-		popS popS
+	
 		#@dugo jsrS
 		@main_skip_esc 
 
@@ -107,6 +109,17 @@
 
 	#@main_toploop jmpS
 	brk
+
+( Absolute value of short on stack - interpreted as signed - by two's complement ) 
+@absS ( valS -- absvalS )
+	dupS #0F shiS #0000 equS $@absS_skip jnz	( only convert if valS < 0 )
+	#FFFF xorS #1 add							( two's complement; flip bits and add 1 )
+	@absS_skip
+jmpSR
+
+@adjacentPoints ( x0S y0S x1S y1S -- adjacent )
+	
+jmpSR
 
 @advancecursor ( row col stepval -- newrow newcol )
 	sts #50 swp stsCR $@step jsr 
@@ -322,14 +335,7 @@ jmpSR
 
 @dugo ( -- )
 	( #0005 #0003 #027F #01dF #02 #@line jsrS )
-	#0042 #0069 #@push_cposbuf jsrS
-	#0021 #0034 #@push_cposbuf jsrS
-	#0010 #0017 #@push_cposbuf jsrS
-	#0005 #0008 #@push_cposbuf jsrS
-	#@pop_cposbuf jsrS
-	#@pop_cposbuf jsrS
-	#@pop_cposbuf jsrS
-	#@pop_cposbuf jsrS
+	#FFFE #@absS jsrS popS 
 jmpSR
 
 ( always subtract the smaller from the bigger )
