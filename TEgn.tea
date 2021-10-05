@@ -20,7 +20,8 @@
 ^E3 @cposbuf_offset 0	( always points to an available position )
 ^E4 @cposbuf_count 0
 ^E5 @cposbuf_max 5
-^E6 @cposbuf_prevpos &4
+^E6 @cposbuf_prevposx &2
+^E6 @cposbuf_prevposy &2
 ^EA @cposbuf &14 ( each cursor position is 4 bytes; xS yS, so its size is cposbuf_max * 4 = 0x14)
 
 ( macro definitions )
@@ -54,14 +55,14 @@
 	( infinite loop )
 	@main_toploop
 
-( TODO check for mouse events in the mouse buffer and move the pointer accordingly )
-
-		#@cposbuf_count lda #0 equ #@main_skip_cposbuf jnzS
+		#@cposbuf_count lda #0 equ #@main_cposbuf_end jnzS
 		#@pop_cposbuf jsrS
-		( compare new point with previous point and, if not adjacent, draw a line between them )
-		#@pointer_draw jsrS
-		
-		@main_skip_cposbuf
+
+		2dupS												( copy new coordinate for storing as prev coords )
+		#@pointer_draw jsrS 
+		( #@cline jsrS )										( draw a line if user holds lmb down )
+		#@cposbuf_prevposy staS	#@cposbuf_prevposx staS	
+		@main_cposbuf_end
 
 		( check the keybuf_count being > 0 )
 		#@keybuf_count lda #0 equ #@main_skip_keybuf jnzS
@@ -109,6 +110,8 @@
 
 	#@main_toploop jmpS
 	brk
+
+
 
 ( Absolute value of short on stack - interpreted as signed - by two's complement ) 
 @absS ( valS -- absvalS )
@@ -197,35 +200,20 @@ jmpSR
 @mousevec
 
 	_@mouse/x bsiS _@mouse/y bsiS #@push_cposbuf jsrS 
-(
-	_@mouse/x bsiS #0003 subS
-	_@mouse/y bsiS #0003 subS
-	#@drawpointer jsrS
-
-	_@mouse/bstate bsi dup #00 equ $@mousevec_skipdraw jnz
-	#2 swp #10 equ $@mousevec_defaultc jnz
-	pop #0 
-	@mousevec_defaultc
-
-	_@mouse/x bsiS
-	_@mouse/y bsiS
-	setpixel
-	$@mousevec_done jmp
-	@mousevec_skipdraw
-
-	pop 
-	@mousevec_done
-)
 	#1 #@IME sta (re-enable interrupts )
 jmpSR
 
 @pointer_draw ( xS yS -- )
 
-	stsSC swpS stsSC	( copy yS and xS to rStack )	
+	2dupS				( copy coords to pass to lmbdown )
 	#0003 subS swpS 	( offset pointer image by 3 in x and y so its center is a the mouse position )
-	#0003 subS 
+	#0003 subS swpS
 	#@drawpointer jsrS
+	#@lmbdown jsrS
+jmpSR
 
+@lmbdown ( xS yS -- )
+	stsS stsS
 	( only draw when a mouse button is down )
 	_@mouse/bstate bsi dup #00 equ $@pointer_draw_skipdraw jnz
 
@@ -239,9 +227,26 @@ jmpSR
 	$@pointer_draw_done jmp
 
 	@pointer_draw_skipdraw
-	popSR popSR							( remove unused coordinates duplicates )
 	pop 								( remove unused bstate duplicate )
+	popSR popSR							( remove unused coordinates duplicates )
 	@pointer_draw_done
+jmpSR
+
+@cline
+	( compare new point with previous point and, if not adjacent, draw a line between them )
+	2dupS												( make copy for consuming )
+	#@cposbuf_prevposx ldaS #@cposbuf_prevposy ldaS		( load the previous position )
+	rotS subS absS #0001 grtS @$cline_connect_points jnz
+	subS absS #0001 grtS @$cline_connect_points jnz
+	( #@pointer_draw jsrS $@cline_cposbuf_end jmp )
+
+	@cline_connect_points
+	#@cposbuf_prevposx ldaS #@cposbuf_prevposy ldaS		( load the previous position )
+	#2 #@line jsrS	
+	@cline_cposbuf_pstore
+	#@cposbuf_prevposy staS	#@cposbuf_prevposx staS	
+
+	@cline_cposbuf_end
 jmpSR
 
 ( console input interrupt handler )
@@ -336,6 +341,7 @@ jmpSR
 @dugo ( -- )
 	( #0005 #0003 #027F #01dF #02 #@line jsrS )
 	#FFFE #@absS jsrS popS 
+	#0042 #@absS jsrS popS 
 jmpSR
 
 ( always subtract the smaller from the bigger )
