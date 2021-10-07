@@ -20,8 +20,7 @@
 ^E3 @cposbuf_offset 0	( always points to an available position )
 ^E4 @cposbuf_count 0
 ^E5 @cposbuf_max 5
-^E6 @cposbuf_prevposx &2
-^E6 @cposbuf_prevposy &2
+^E6 @cposbuf_prevposx &2 @cposbuf_prevposy &2
 ^EA @cposbuf &14 ( each cursor position is 4 bytes; xS yS, so its size is cposbuf_max * 4 = 0x14)
 
 ( macro definitions )
@@ -39,6 +38,7 @@
 
 %fontoffset { #0 swp ( turn byte into short ) #30 shiS }
 
+%lmbdown { _@mouse/bstate bsi #10 and #10 equ }
 
 ( convert row and col to xy ) 
 ( screen resolution is 640x480. Each cell in grid is 8x8. So x is 8*col and y is 8*row )
@@ -54,40 +54,47 @@
 	#0000	( row and col inited )
 	( infinite loop )
 	@main_toploop
-
+(
 		#@cposbuf_count lda #0 equ #@main_cposbuf_end jnzS
 		#@pop_cposbuf jsrS
 
-		2dupS												( copy new coordinate for storing as prev coords )
+		2dupS		
 		#@pointer_draw jsrS 
-		( #@cline jsrS )										( draw a line if user holds lmb down )
+		lmbdown #0 equ $@main_toploop_skip_linedraw jnz
+		#@linedraw jsrS 
+		@main_toploop_skip_linedraw 
+
 		#@cposbuf_prevposy staS	#@cposbuf_prevposx staS	
 		@main_cposbuf_end
+)
 
-		( check the keybuf_count being > 0 )
+( NB move all key handling into separate function )
+
+		( check the keybuf_count being > 0 ) 
 		#@keybuf_count lda #0 equ #@main_skip_keybuf jnzS
-		
-		dupS ( keep copy of row and col before calling drawchar )
+( p: row col )	
 		#@pop_keybuf jsrS
+		
+		dup #7F equ $@main_doctrl jnz					( check for delete character )
+		dup #20 lst $@main_doctrl jnz					( check for other control characters )
 
-		( check for delete and control characters )
-		dup #7F equ $@main_doctrl jnz
-		dup #20 lst $@main_doctrl jnz
-
+		sts dupS stsR									( duplicate the row and col behind char )
 		#@drawchar jsrS 
 		
-		( increment the columns and rows as characters are printed. )
-		#1 #@advancecursor jsrS
+		#1 #@advancecursor jsrS							( increment the columns and rows as characters are printed. )
 
 		#@main_skip_keybuf jmpS
 
 		( handle control characters )
 		@main_doctrl
+
 		dup #7F neq $@main_skip_delete jnz
 		pop ( remove extra unneeded char copy )
 		( move back and draw a space )	
+
 		#FF #@advancecursor jsrS
-		dupS #20 #@drawchar jsrS 
+
+		dupS #20 #@drawchar jsrS
 		$@main_skip_keybuf jmp
 
 		@main_skip_delete
@@ -103,7 +110,7 @@
 
 		#1B neq $@main_skip_esc jnz
 	
-		#@dugo jsrS
+		( #@dugo jsrS )
 		@main_skip_esc 
 
 		@main_skip_keybuf
@@ -205,49 +212,41 @@ jmpSR
 
 @pointer_draw ( xS yS -- )
 
-	2dupS				( copy coords to pass to lmbdown )
 	#0003 subS swpS 	( offset pointer image by 3 in x and y so its center is a the mouse position )
 	#0003 subS swpS
 	#@drawpointer jsrS
-	#@lmbdown jsrS
 jmpSR
 
-@lmbdown ( xS yS -- )
-	stsS stsS
-	( only draw when a mouse button is down )
-	_@mouse/bstate bsi dup #00 equ $@pointer_draw_skipdraw jnz
-
-	( default color is #2 )
-	#2 swp #10 equ $@pointer_draw_defaultc jnz
-	pop #0 
-
-	@pointer_draw_defaultc
-	stsSR stsSR							( retrieve xS and yS from rStack )
-	setpixel
-	$@pointer_draw_done jmp
-
-	@pointer_draw_skipdraw
-	pop 								( remove unused bstate duplicate )
-	popSR popSR							( remove unused coordinates duplicates )
-	@pointer_draw_done
+@linedraw ( xS yS -- )
+	2dupS
+	#@cline jsrS 
 jmpSR
 
-@cline
+@cline ( xS yS -- )
 	( compare new point with previous point and, if not adjacent, draw a line between them )
 	2dupS												( make copy for consuming )
 	#@cposbuf_prevposx ldaS #@cposbuf_prevposy ldaS		( load the previous position )
-	rotS subS absS #0001 grtS @$cline_connect_points jnz
-	subS absS #0001 grtS @$cline_connect_points jnz
-	( #@pointer_draw jsrS $@cline_cposbuf_end jmp )
+	rotS subS #@absS jsrS 
+	#0001 grtS $@cline_connect_points1 jnz
+	subS #@absS jsrS
+	#0001 grtS $@cline_connect_points jnz
+
+	#0002 rotS rotS ( place a clut value in front of coords )
+	setpixel 
+	pop				( pop unused byte of clut )
+	jmpSR
+
+	@cline_connect_points1	( if failed first check ... )
+	popS pop 					( ...remove unused duplicates )
 
 	@cline_connect_points
-	#@cposbuf_prevposx ldaS #@cposbuf_prevposy ldaS		( load the previous position )
-	#2 #@line jsrS	
-	@cline_cposbuf_pstore
-	#@cposbuf_prevposy staS	#@cposbuf_prevposx staS	
-
-	@cline_cposbuf_end
+popS popS
 jmpSR
+	#@cposbuf_prevposx ldaS #@cposbuf_prevposy ldaS		( load the previous position )
+	#2 
+	#@line jsrS	
+jmpSR
+@debugv 0 
 
 ( console input interrupt handler )
 @convec
@@ -340,8 +339,12 @@ jmpSR
 
 @dugo ( -- )
 	( #0005 #0003 #027F #01dF #02 #@line jsrS )
-	#FFFE #@absS jsrS popS 
-	#0042 #@absS jsrS popS 
+	( stack has 4 bytes of #0 )
+	#0002 #@cposbuf_prevposx staS
+	#0003 #@cposbuf_prevposy staS
+	#0002 #0003
+	( stack has 8 bytes of 0 0 0 0 0 2 0 3 )
+	#@linedraw jsrS
 jmpSR
 
 ( always subtract the smaller from the bigger )
