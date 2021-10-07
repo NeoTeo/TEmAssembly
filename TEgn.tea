@@ -109,8 +109,8 @@
 		@main_skip_enter
 
 		#1B neq $@main_skip_esc jnz
-	
-		( #@dugo jsrS )
+
+		#@dugo jsrS
 		@main_skip_esc 
 
 		@main_skip_keybuf
@@ -218,7 +218,7 @@ jmpSR
 jmpSR
 
 @linedraw ( xS yS -- )
-	2dupS
+	( 2dupS )
 	#@cline jsrS 
 jmpSR
 
@@ -339,10 +339,11 @@ jmpSR
 
 @dugo ( -- )
 	( #0005 #0003 #027F #01dF #02 #@line jsrS )
-	( stack has 4 bytes of #0 )
+	( p: row col )
 	#0002 #@cposbuf_prevposx staS
 	#0003 #@cposbuf_prevposy staS
-	#0002 #0003
+	#0020 #0003
+	( p: row col xS yS ) 
 	( stack has 8 bytes of 0 0 0 0 0 2 0 3 )
 	#@linedraw jsrS
 jmpSR
