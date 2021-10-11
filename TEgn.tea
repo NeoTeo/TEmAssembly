@@ -57,19 +57,19 @@
 	#0000	( row and col inited )
 	( infinite loop )
 	@main_toploop
-(
+
 		#@cposbuf_count lda #0 equ #@main_cposbuf_end jnzS
 		#@pop_cposbuf jsrS
 
 		2dupS		
 		#@pointer_draw jsrS 
 		lmbdown #0 equ $@main_toploop_skip_linedraw jnz
-		#@cline jsrS 
+			2dupS
+			#@cline jsrS 
 		@main_toploop_skip_linedraw 
-
 		#@cposbuf_prevposy staS	#@cposbuf_prevposx staS	
 		@main_cposbuf_end
-)
+
 
 ( NB move all key handling into separate function )
 
@@ -209,7 +209,8 @@ jmpSR
 ( should just put mouse events into buffer )
 @mousevec
 
-	_@mouse/x bsiS _@mouse/y bsiS #@push_cposbuf jsrS 
+	_@mouse/x bsiS _@mouse/y bsiS  #@push_cposbuf jsrS 
+
 	#1 #@IME sta (re-enable interrupts )
 jmpSR
 
@@ -234,13 +235,12 @@ jmpSR
 	( p: row col xS yS adxS ) 
 	#0001 grtS $@cline_connect_points jnz				( check delta x <= 1 )
 	( p: row col xS yS ) 
-
 	#0002 rotS rotS ( place a clut value in front of coords )
 	( p: row col clutS xS yS ) 
 	setpixel 
 	pop				( pop unused byte of clut )
 	( p: row col ) 
-	jmpSR
+	jmpSR			( job done, return )
 
 	@cline_connect_points1	( if failed first check ... )
 	( p: row col xS yS xS pxS ) 
@@ -344,11 +344,12 @@ jmpSR
 jmpSR
 
 @dugo ( -- )
+(
 	 #0005 #0003 #027F #01dF #02 #@line jsrS
 	  #0005 #0003 #00F7 #00F6 #02 #@line jsrS 
 	  #0002 #0003 #0002 #0030 #02 #@line jsrS 
 	  #0002 #0003 #0002 #000F #02 #@line jsrS 
-
+)
 	( p: row col )
 (
 	#0002 #@cposbuf_prevposx staS
