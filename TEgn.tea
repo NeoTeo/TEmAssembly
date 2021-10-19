@@ -216,7 +216,7 @@ jmpSR
 
 @pointer_draw ( xS yS -- )
 
-	#0003 subS swpS 	( offset pointer image by 3 in x and y so its center is a the mouse position )
+	#0003 subS swpS 	( offset pointer image by 3 in x and y so its center is at the mouse position )
 	#0003 subS swpS
 	#@drawpointer jsrS
 jmpSR
@@ -343,21 +343,62 @@ jmpSR
 	pop
 jmpSR
 
+@hfan ( xS yS - )
+
+	( from xS yS )
+	#0140 #00F0 ( middle of screen )
+	stsS stsS
+
+	@hfan_loopstart
+	2dupS
+	stsSRC stsSRC	( copy x0S then y0S from rStack )
+	
+	#02 #@line jsrS
+	swpS #0003 addS swpS
+	ovrS #0280 lstS $@hfan_loopstart jnz
+
+	( clean up stacks before returning )
+	popS popS
+	popSR popSR
+jmpSR
+
+@vfan ( xS yS - )
+
+	( from xS yS )
+	#0140 #00F0 ( middle of screen )
+	stsS stsS
+
+	@vfan_loopstart
+	2dupS
+	stsSRC stsSRC	( copy x0S then y0S from rStack )
+	
+	#02 #@line jsrS
+	#0003 addS 
+	dupS #01E0 lstS $@vfan_loopstart jnz
+
+	( clean up stacks before returning )
+	popS popS
+	popSR popSR
+jmpSR
+
+@linetest
+
+	( to xS yS )
+	#0000 #0000 #@hfan jsrS 		( top left )
+	#0000 #0000 #@vfan jsrS 		( top left )
+	#0000 #01DF #@hfan jsrS 		( top right )
+	#027F #0000 #@vfan jsrS 		( top right )
+jmpSR
+	( p: x1S y1S r: x0S y0S )
+
 @dugo ( -- )
+(	  #0140 #00F0 #0101 #0000 #02 #@line jsrS )
 (
-	 #0005 #0003 #027F #01dF #02 #@line jsrS
 	  #0005 #0003 #00F7 #00F6 #02 #@line jsrS 
 	  #0002 #0003 #0002 #0030 #02 #@line jsrS 
 	  #0002 #0003 #0002 #000F #02 #@line jsrS 
 )
-	( p: row col )
-(
-	#0002 #@cposbuf_prevposx staS
-	#0003 #@cposbuf_prevposy staS
-	#0002 #0030 
-)
-	( p: row col xS yS ) 
-	( #@cline jsrS )
+	 #@linetest jsrS 
 jmpSR
 
 ( always subtract the smaller from the bigger )
@@ -519,11 +560,13 @@ jmpSR
 @line_col &1 @line_x0 &2 @line_y0 &2 @line_y1 &2 @line_x1 &2
 @line_dx &2 @line_dy &2 @line_sx &2 @line_sy &2 
 
-^500 @pointer/xhair
-10 10 00 D6 00 10 10 00
-^508 @pointer/clear
-00 00 00 00 00 00 00 00
-^510 @pointer/x 00 00 @pointer/y 00 00 
+@pointer/xhair
+10 10 00 D6 00 10 10 00 &8
+@pointer/clear
+00 00 00 00 00 00 00 00 &8
+@pointer/x 00 00 &2
+@pointer/y 00 00 &2 
+
 
 (chars are at 0x500 + ascii*8 )
 ^600 @font/monomini
