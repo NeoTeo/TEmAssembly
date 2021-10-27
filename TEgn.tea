@@ -61,7 +61,7 @@
 	@main_toploop
 
 		#@cposbuf_count lda #0 equ #@main_cposbuf_end jnzS
-		#@pop_cposbuf jsrS ( #0069 #0042 )
+		#@pop_cposbuf jsrS 
 		2dupS		
 		#@pointer_draw jsrS 
 		lmbdown #0 equ $@main_toploop_skip_linedraw jnz
@@ -276,21 +276,38 @@ jmpSR
 
 @push_cposbuf ( xS yS -- )
 
-	#@cposbuf #@cposbuf_offset lda stsC			( load the cposbuf_offset and copy to rStack )
-	#20 shi add	swpS ovrS staS					( offset cposbuf by cposbuf_offset * 4 to account for two shorts per entry )
-	#2 add staS									( store two shorts in buffer at calculated position )
-	( empty pStack )
-	#@cposbuf_max lda stsR ovr #@inc_ring jsrS	( get offset from rStack and calculate next offset )
+	#@cposbuf #@cposbuf_offset lda				( buffer addr to stack and load the cposbuf_offset )
+																			( p: xS yS cposbufS cposbuf_offset r: )
+	stsC										( copy it to rStack )
+																			( p: xS yS cposbufS cposbuf_offset r: cposbuf_offset )
+	#20 shi add									( offset cposbuf by cposbuf_offset * 4 to account for two shorts per entry )
+																			( p: xS yS cposbufS r: cposbuf_offset )
+	swpS ovrS 
+																			( p: xS cposbufS yS cposbufS r: cposbuf_offset )
+	staS										( store yS at cposBuf )
+																			( p: xS cposbufS r: cposbuf_offset )
+	#2 add staS									( increment buffer pointer by two and store xS ) 
+																			( p: r: cposbuf_offset )
+
+	#@cposbuf_max lda 
+																			( p: cposbuf_max r: cposbuf_offset )
+	stsR ovr									( get offset from rStack and ready for inc_ring call )
+																			( p: cposbuf_max cposbuf_offset cposbuf_max r: )
+	#@inc_ring jsrS								( calculate next offset )
+																			( p: cposbuf_max cposbuf_offset r: )
 	#@cposbuf_offset sta						( store the new offset )
+																			( p: cposbuf_max r: )
 
 	( increment counter if less than max )
 	#@cposbuf_count lda swp 
+																			( p: cposbuf_count cposbuf_max r: )
 	>= $@push_cposbuf_skip jnz					( increment counter if count is less than max ) 
-	#@cposbuf_count lda
-	#1 add
+	#@cposbuf_count lda #1 add
+																			( p: cposbuf_count r: )
 	#@cposbuf_count sta	
+																			( p: r: )
 	@push_cposbuf_skip
-	
+																			( p: r: )
 jmpSR
 
 @pop_cposbuf ( -- xS yS )
@@ -351,7 +368,8 @@ jmpSR
 
 	@hfan_loopstart
 	2dupS
-	stsSRC stsSRC	( copy x0S then y0S from rStack )
+	( stsSRC stsSRC )	( copy x0S then y0S from rStack )
+	stsSR stsSR 2dupS stsS stsS
 	
 	#02 #@line jsrS
 	swpS #0003 addS swpS
@@ -370,7 +388,8 @@ jmpSR
 
 	@vfan_loopstart
 	2dupS
-	stsSRC stsSRC	( copy x0S then y0S from rStack )
+	( stsSRC stsSRC )	( copy x0S then y0S from rStack )
+	stsSR stsSR 2dupS stsS stsS
 	
 	#02 #@line jsrS
 	#0003 addS 
@@ -393,15 +412,19 @@ jmpSR
 
 ( calling this repeatedly whilst moving the mouse causes a -1 y value that crashes the emu )
 @dugo ( -- )
-
-	( #0140 #00F0 #0101 #0000 #02 #@line jsrS )
-	#0101 #0000 #0140 #00F0 #02 #@line jsrS 
+	( print character 68 to stdout )
+	#68 _@console/write bso
+	( @dugo_top )
+	 ( #0140 #00F0 #0101 #0000 #02 #@line jsrS )
+	 ( #0140 #00F0 #0140 #00EF #02 #@line jsrS )
+	( $@dugo_top jmp )
+	( #0101 #0000 #0140 #00F0 #02 #@line jsrS )
 (
 	  #0005 #0003 #00F7 #00F6 #02 #@line jsrS 
 	  #0002 #0003 #0002 #0030 #02 #@line jsrS 
 	  #0002 #0003 #0002 #000F #02 #@line jsrS 
 )
-	 ( #@linetest jsrS )
+	#@linetest jsrS 
 jmpSR
 
 ( always subtract the smaller from the bigger )
@@ -469,10 +492,10 @@ jmpSR
 																				( p: errS / r: ... ) 
 	#@line_col lda #@line_x0 ldaS #@line_y0 ldaS
 																				( p: errS line_col line_x0S line_y0S / r: .. ) 
-	stsSC stsSC 	( copy y and x to rStack )
+	( stsSC stsSC ) 	( copy y and x to rStack ) ( copy opcodes are not safe when interrupts can intercede between calls )
+	2dupS stsS stsS ( copy y and x to rStack )
 																				( p: errS line_col line_x0S line_y0S / r: .. line_y0S line_x0S ) 
 	@line_loop
-		
 		setpixel	
 																				( p: errS / r: .. line_y0S line_x0S ) 
 ( if x == x1 && y == y1 break )
@@ -551,7 +574,8 @@ jmpSR
 		#@line_col lda 
 																				( p: row col errS line_col / r: .. line_y0S line_x0S ) 
 		( swpSR )
-		stsSRC stsSRC 
+		( stsSRC stsSRC ) ( copy opcodes are not safe when interrupts can intercede between calls )
+		stsSR stsSR 2dupS stsS stsS
 																				( p: row col errS line_col line_x0S line_y0S / r: .. line_y0S line_x0S ) 
 		#@line_loop jmpS
 
