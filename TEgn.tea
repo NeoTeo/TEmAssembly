@@ -415,7 +415,7 @@ jmpSR
 	( print character 68 to stdout )
 	#68 _@console/write bso
 	( @dugo_top )
-	 ( #0140 #00F0 #0101 #0000 #02 #@line jsrS )
+	 ( #0140 #00F0 #0140 #00F3 #02 #@line jsrS )
 	 ( #0140 #00F0 #0140 #00EF #02 #@line jsrS )
 	( $@dugo_top jmp )
 	( #0101 #0000 #0140 #00F0 #02 #@line jsrS )
@@ -500,6 +500,8 @@ jmpSR
 																				( p: errS / r: .. line_y0S line_x0S ) 
 ( if x == x1 && y == y1 break )
 		( TODO: split into two so we only check second part if x == x1. )
+		( problem here: assumes that the rStack copy index is pointing to the end of the rStack )
+		dupSR popSR ( debug fix )
 		stsSRC 
 																				( p: errS line_x0S / r: .. line_y0S line_x0S ) 
 		#@line_x1 ldaS 
@@ -573,9 +575,11 @@ jmpSR
 
 		#@line_col lda 
 																				( p: row col errS line_col / r: .. line_y0S line_x0S ) 
-		( swpSR )
-		( stsSRC stsSRC ) ( copy opcodes are not safe when interrupts can intercede between calls )
-		stsSR stsSR 2dupS stsS stsS
+		
+( stsSRC ) ( Wrong assumption here - two subsequent copy calls do not move down the stack but return the same end value each time ! )
+( 0x555 )
+( stsSRC ) ( copy opcodes are not safe when interrupts can intercede between calls )
+stsSR stsSR 2dupS stsS stsS
 																				( p: row col errS line_col line_x0S line_y0S / r: .. line_y0S line_x0S ) 
 		#@line_loop jmpS
 
