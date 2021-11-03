@@ -39,11 +39,11 @@
 
 %isnegS { #8000 andS #8000 equS } ( aS bS -- result ) 
 
-%setpixel { _@screen/yposition bsoS _@screen/xposition bsoS _@screen/clut bso } ( col xS yS -- )
+%setpixel { _screen/yposition bsoS _screen/xposition bsoS _screen/clut bso } ( col xS yS -- )
 
 %fontoffset { #0 swp ( turn byte into short ) #30 shiS }
 
-%lmbdown { _@mouse/bstate bsi #10 and #10 equ }
+%lmbdown { _mouse/bstate bsi #10 and #10 equ }
 
 ( convert row and col to xy ) 
 ( screen resolution is 640x480. Each cell in grid is 8x8. So x is 8*col and y is 8*row )
@@ -54,79 +54,79 @@
 
 ( a character is 8 x 8 bits )
 @main
-	#@convec _@console/vector bsoS ( set the console interrupt vector ) 
-	#@mousevec _@mouse/vector bsoS ( set the mouse interrupt vector ) 
+	;convec _console/vector bsoS ( set the console interrupt vector ) 
+	;mousevec _mouse/vector bsoS ( set the mouse interrupt vector ) 
 	#0000	( row and col inited )
 	( infinite loop )
-	@main_toploop
+	.toploop
 	
-		#@handle_mousebuf jsrS
+		;handle_mousebuf jsrS
 
-		#@handle_keybuf jsrS
+		;handle_keybuf jsrS
 
-	#@main_toploop jmpS
+	;.toploop jmpS
 	brk
 
 @handle_mousebuf ( -- )
-	#@cposbuf_count lda #0 equ #@handle_mousebuf_cposbuf_end jnzS
-	#@pop_cposbuf jsrS 
+	;cposbuf_count lda #0 equ $.cposbuf_end jnz
+	;pop_cposbuf jsrS 
 
-	2dupS #@pointer_draw jsrS 
+	2dupS ;pointer_draw jsrS 
 
-	lmbdown #0 equ $@handle_mousebuf_skip_linedraw jnz
+	lmbdown #0 equ $.skip_linedraw jnz
 
-	2dupS #@cline jsrS 
+	2dupS ;cline jsrS 
 
-	@handle_mousebuf_skip_linedraw 
+	.skip_linedraw 
 
-	#@cposbuf_prevposy staS	#@cposbuf_prevposx staS	
-	@handle_mousebuf_cposbuf_end
+	;cposbuf_prevposy staS	;cposbuf_prevposx staS	
+	.cposbuf_end
 jmpSR
 
 
 @handle_keybuf ( row col -- )
 
 		( check the keybuf_count being > 0 ) 
-		#@keybuf_count lda #0 equ #@handle_keybuf_skip jnzS
+		;keybuf_count lda #0 equ ;handle_keybuf_skip jnzS
 
-		#@pop_keybuf jsrS
+		;pop_keybuf jsrS
 		
-		dup #7F equ $@handle_keybuf_doctrl jnz					( check for delete character )
-		dup #20 lst $@handle_keybuf_doctrl jnz					( check for other control characters )
+		dup #7F equ $handle_keybuf_doctrl jnz					( check for delete character )
+		dup #20 lst $handle_keybuf_doctrl jnz					( check for other control characters )
 
 		sts dupS stsR											( duplicate the row and col behind char )
-		#@drawchar jsrS 
+		;drawchar jsrS 
 		
-		#1 #@advancecursor jsrS									( increment the columns and rows as characters are printed. )
+		#1 ;advancecursor jsrS									( increment the columns and rows as characters are printed. )
 
-		#@handle_keybuf_skip jmpS
+		;handle_keybuf_skip jmpS
 
 		( handle control characters )
 		@handle_keybuf_doctrl
 
-		dup #7F neq $@handle_keybuf_skip_delete jnz
+		dup #7F neq $handle_keybuf_skip_delete jnz
 		pop ( remove extra unneeded char copy )
 		( move back and draw a space )	
 
-		#FF #@advancecursor jsrS
+		#FF ;advancecursor jsrS
 
-		dupS #20 #@drawchar jsrS
-		$@handle_keybuf_skip jmp
+		dupS #20 ;drawchar jsrS
+		$handle_keybuf_skip jmp
 
 		@handle_keybuf_skip_delete
 		
-		dup #0D neq $@handle_keybuf_skip_enter jnz
+		dup #0D neq $handle_keybuf_skip_enter jnz
 		pop ( remove extra unneeded char copy )
 		( set col to end and advance, which causes it to move to the next line. )
 		pop #4F 
-		#1 $@advancecursor jsr
-		$@handle_keybuf_skip jmp
+		#1 $advancecursor jsr
+		$handle_keybuf_skip jmp
 
 		@handle_keybuf_skip_enter
 
-		#1B neq $@handle_keybuf_skip_esc jnz
+		#1B neq $handle_keybuf_skip_esc jnz
 
-		#@dugo jsrS
+		;dugo jsrS
 		@handle_keybuf_skip_esc 
 
 		@handle_keybuf_skip
@@ -134,7 +134,7 @@ jmpSR
 
 ( Absolute value of short on stack - interpreted as signed - by two's complement ) 
 @absS ( valS -- absvalS )
-	dupS #0F shiS #0000 equS $@absS_skip jnz	( only convert if valS < 0 )
+	dupS #0F shiS #0000 equS $absS_skip jnz	( only convert if valS < 0 )
 	#FFFF xorS #1 add							( two's complement; flip bits and add 1 )
 	@absS_skip
 jmpSR
@@ -144,33 +144,33 @@ jmpSR
 jmpSR
 
 @advancecursor ( row col stepval -- newrow newcol )
-	sts #50 swp stsCR $@step jsr 
-	#0 equ $@advancecursor_skip_vstep jnz 
-	swp #3C swp stsCR $@step jsr pop swp
+	sts #50 swp stsCR $step jsr 
+	#0 equ $advancecursor_skip_vstep jnz 
+	swp #3C swp stsCR $step jsr pop swp
 	@advancecursor_skip_vstep
 	popR
 jmpSR
 
 ( step cursor by stepval signed and leave new col and 0xff if the column was reset )
 @step ( maxcols col stepval -- newcol didreset )
-	add dupS swp lst $@step_norm jnz
-	dupS equ $@step_over jnz
-	swp #1 sub swp $@step_end jmp ( understepped )
-	@step_over popS #0 #FF $@step_end jmp
+	add dupS swp lst $step_norm jnz
+	dupS equ $step_over jnz
+	swp #1 sub swp $step_end jmp ( understepped )
+	@step_over popS #0 #FF $step_end jmp
 	@step_norm swp	pop #0
 	@step_end
 jmpSR
 
 ( leave smallest of the two values on stack )
 @minS ( aS bS -- rS )
-	2dupS <?S $@minS_skipswap jnz
+	2dupS <?S $minS_skipswap jnz
 	swpS
 	@minS_skipswap 
 	popS
 jmpSR
 
 @maxS ( aS bS -- rS )
-	2dupS <?S #0 equ $@maxS_skipswap jnz
+	2dupS <?S #0 equ $maxS_skipswap jnz
 	swpS
 	@maxS_skipswap 
 	popS
@@ -178,69 +178,69 @@ jmpSR
 
 @drawpointer ( xposS yposS -- )
 	swpS
-	#0000 #@maxS jsrS
+	#0000 ;maxS jsrS
 	swpS
-	#0000 #@maxS jsrS
+	#0000 ;maxS jsrS
 
-	#@pointer/x ldaS
-	#@pointer/y ldaS
+	;pointer/x ldaS
+	;pointer/y ldaS
 
-	_@screen/yposition bsoS
-	_@screen/xposition bsoS
-	#@pointer/clear
-	_@screen/addr bsoS			( set dma address )
-	#41 _@screen/dma bso		( start dma transfer of 64 bits to fg: bit 1, to foreground layer: bit 7 )
+	_screen/yposition bsoS
+	_screen/xposition bsoS
+	;pointer/clear
+	_screen/addr bsoS			( set dma address )
+	#41 _screen/dma bso		( start dma transfer of 64 bits to fg: bit 1, to foreground layer: bit 7 )
 	2dupS 	( duplicate the new position )
-	#@pointer/y staS
-	#@pointer/x staS
+	;pointer/y staS
+	;pointer/x staS
 
-	_@screen/yposition bsoS
-	_@screen/xposition bsoS
-	 #@pointer/xhair 
-	_@screen/addr bsoS			( set dma address )
-	#41 _@screen/dma bso		( start dma transfer of 64 bits to fg: bit 1, to foreground layer: bit 7 )
+	_screen/yposition bsoS
+	_screen/xposition bsoS
+	 ;pointer/xhair 
+	_screen/addr bsoS			( set dma address )
+	#41 _screen/dma bso		( start dma transfer of 64 bits to fg: bit 1, to foreground layer: bit 7 )
 jmpSR
 
 @drawchar ( row col char -- )
 	rot rot
 	rowcoltoxy
-	_@screen/yposition bsoS
-	_@screen/xposition bsoS
+	_screen/yposition bsoS
+	_screen/xposition bsoS
 
-	fontoffset #@font/monomini addS
-	_@screen/addr bsoS
+	fontoffset ;font/monomini addS
+	_screen/addr bsoS
 
-	#1 _@screen/dma bso		( start dma transfer of 64 bits from addr )
+	#1 _screen/dma bso		( start dma transfer of 64 bits from addr )
 jmpSR
 
 ( mouse input interrupt handler )
 ( should just put mouse events into buffer )
 @mousevec
 
-	_@mouse/x bsiS _@mouse/y bsiS #@push_cposbuf jsrS 
+	_mouse/x bsiS _mouse/y bsiS ;push_cposbuf jsrS 
 
-	#1 #@IME sta (re-enable interrupts )
+	#1 ;IME sta (re-enable interrupts )
 jmpSR
 
 @pointer_draw ( xS yS -- )
 	#0003 subS swpS 	( offset pointer image by 3 in x and y so its center is at the mouse position )
 	#0003 subS swpS
-	#@drawpointer jsrS
+	;drawpointer jsrS
 jmpSR
 
 ( compare new point with previous point and, if not adjacent, draw a line between them )
 @cline ( xS yS -- )
 	( p: row col xS yS ) 
 	2dupS												( make copy for consuming )
-	#@cposbuf_prevposx ldaS #@cposbuf_prevposy ldaS		( load the previous position )
+	;cposbuf_prevposx ldaS ;cposbuf_prevposy ldaS		( load the previous position )
 	( p: row col xS yS xS yS pxS pyS ) 
-	rotS subS #@absS jsrS 
+	rotS subS ;absS jsrS 
 	( p: row col xS yS xS pxS adyS ) 
-	#0001 grtS $@cline_connect_points1 jnz				( check delta y <= 1 )
+	#0001 grtS $cline_connect_points1 jnz				( check delta y <= 1 )
 	( p: row col xS yS xS pxS ) 
-	subS #@absS jsrS
+	subS ;absS jsrS
 	( p: row col xS yS adxS ) 
-	#0001 grtS $@cline_connect_points jnz				( check delta x <= 1 )
+	#0001 grtS $cline_connect_points jnz				( check delta x <= 1 )
 	( p: row col xS yS ) 
 	#0002 rotS rotS ( place a clut value in front of coords )
 
@@ -256,29 +256,29 @@ jmpSR
 	( p: row col xS yS ) 
 
 	@cline_connect_points
-	#@cposbuf_prevposx ldaS #@cposbuf_prevposy ldaS		( load the previous position )
+	;cposbuf_prevposx ldaS ;cposbuf_prevposy ldaS		( load the previous position )
 	( p: row col xS yS pxS pyS ) 
 	#2 
-	#@line jsrS	
+	;line jsrS	
 jmpSR
 
 ( console input interrupt handler )
 @convec
-	_@console/read bsi	
+	_console/read bsi	
 	
-	#@push_keybuf jsrS
-	#1 #@IME sta (re-enable interrupts )
+	;push_keybuf jsrS
+	#1 ;IME sta (re-enable interrupts )
 jmpSR
 
 ( byte only, range is 0 to max-1 )
 @inc_ring ( cur max -- )
-	swp #1 add dup rot lst $@inc_ring_skip jnz
+	swp #1 add dup rot lst $inc_ring_skip jnz
 	pop #0
 	@inc_ring_skip	
 jmpSR
 
 @dec_ring ( cur max -- )
-	swp #1 sub dupS grt $@dec_ring_skip jnz
+	swp #1 sub dupS grt $dec_ring_skip jnz
 	swp #1 sub		
 	@dec_ring_skip	
 	swp pop
@@ -286,7 +286,7 @@ jmpSR
 
 @push_cposbuf ( xS yS -- )
 
-	#@cposbuf #@cposbuf_offset lda				( buffer addr to stack and load the cposbuf_offset )
+	;cposbuf ;cposbuf_offset lda				( buffer addr to stack and load the cposbuf_offset )
 																			( p: xS yS cposbufS cposbuf_offset r: )
 	stsC										( copy it to rStack )
 																			( p: xS yS cposbufS cposbuf_offset r: cposbuf_offset )
@@ -299,22 +299,22 @@ jmpSR
 	#2 add staS									( increment buffer pointer by two and store xS ) 
 																			( p: r: cposbuf_offset )
 
-	#@cposbuf_max lda 
+	;cposbuf_max lda 
 																			( p: cposbuf_max r: cposbuf_offset )
 	stsR ovr									( get offset from rStack and ready for inc_ring call )
 																			( p: cposbuf_max cposbuf_offset cposbuf_max r: )
-	#@inc_ring jsrS								( calculate next offset )
+	;inc_ring jsrS								( calculate next offset )
 																			( p: cposbuf_max cposbuf_offset r: )
-	#@cposbuf_offset sta						( store the new offset )
+	;cposbuf_offset sta						( store the new offset )
 																			( p: cposbuf_max r: )
 
 	( increment counter if less than max )
-	#@cposbuf_count lda swp 
+	;cposbuf_count lda swp 
 																			( p: cposbuf_count cposbuf_max r: )
-	>= $@push_cposbuf_skip jnz					( increment counter if count is less than max ) 
-	#@cposbuf_count lda #1 add
+	>= $push_cposbuf_skip jnz					( increment counter if count is less than max ) 
+	;cposbuf_count lda #1 add
 																			( p: cposbuf_count r: )
-	#@cposbuf_count sta	
+	;cposbuf_count sta	
 																			( p: r: )
 	@push_cposbuf_skip
 																			( p: r: )
@@ -322,13 +322,13 @@ jmpSR
 
 @pop_cposbuf ( -- xS yS )
 	( just return if the buffer is empty )
-	#@cposbuf_count lda dup #0 equ $@pop_cposbuf_skip jnz
+	;cposbuf_count lda dup #0 equ $pop_cposbuf_skip jnz
 	( reduce count and store it )
-	#1 sub #@cposbuf_count sta
+	#1 sub ;cposbuf_count sta
 
-	#@cposbuf
-	#@cposbuf_offset lda #@cposbuf_max lda #@dec_ring jsrS
-	dup #@cposbuf_offset sta				( store the new offset )
+	;cposbuf
+	;cposbuf_offset lda ;cposbuf_max lda ;dec_ring jsrS
+	dup ;cposbuf_offset sta				( store the new offset )
 	#20 shi add dupS ldaS swpS					( add offset * 4 to buffer address to account for 2 short per entry to load yS )
 	#2 add ldaS 								( load xS )
 	swpS
@@ -339,30 +339,30 @@ jmpSR
 
 @push_keybuf ( val -- )
 
-	#@keybuf #@keybufptr lda stsC ( load the keybuf pointer value and copy to rStack )
+	;keybuf ;keybufptr lda stsC ( load the keybuf pointer value and copy to rStack )
 	add ( offset keybuf by pointer )
 	sta ( store key in keybuf )
 
-	stsR #@keybuf_max lda #@inc_ring jsrS
+	stsR ;keybuf_max lda ;inc_ring jsrS
 
-	#@keybufptr sta ( store the incremented pointer )
+	;keybufptr sta ( store the incremented pointer )
 
 	( circular buffer maxes out at #20 )
-	#@keybuf_count lda 
-	#@keybuf_max lda >= $@push_keybuf_skip jnz
-	#@keybuf_count lda #1 add 
-	#@keybuf_count sta
+	;keybuf_count lda 
+	;keybuf_max lda >= $push_keybuf_skip jnz
+	;keybuf_count lda #1 add 
+	;keybuf_count sta
 	@push_keybuf_skip
 jmpSR
 
 @pop_keybuf ( -- char )
-	#@keybuf_count lda dup #0 equ $@pop_keybuf_skip jnz 
-	#1 sub #@keybuf_count sta
+	;keybuf_count lda dup #0 equ $pop_keybuf_skip jnz 
+	#1 sub ;keybuf_count sta
 
-	#@keybuf 
+	;keybuf 
 	( keybufptr points to the next free pos so decrement first )
-	#@keybufptr lda #@keybuf_max lda #@dec_ring jsrS
-	dup #@keybufptr sta 			( store the pointer )
+	;keybufptr lda ;keybuf_max lda ;dec_ring jsrS
+	dup ;keybufptr sta 			( store the pointer )
 	add 							( offset keybuf by pointer )
 	lda								( load the value at the offset onto pStack ) 
 	jmpSR
@@ -381,9 +381,9 @@ jmpSR
 	( stsSRC stsSRC )	( copy x0S then y0S from rStack )
 	stsSR stsSR 2dupS stsS stsS
 	
-	#02 #@line jsrS
+	#02 ;line jsrS
 	swpS #0003 addS swpS
-	ovrS #0280 lstS $@hfan_loopstart jnz
+	ovrS #0280 lstS $hfan_loopstart jnz
 
 	( clean up stacks before returning )
 	popS popS
@@ -401,9 +401,9 @@ jmpSR
 	( stsSRC stsSRC )	( copy x0S then y0S from rStack )
 	stsSR stsSR 2dupS stsS stsS
 	
-	#02 #@line jsrS
+	#02 ;line jsrS
 	#0003 addS 
-	dupS #01E0 lstS $@vfan_loopstart jnz
+	dupS #01E0 lstS $vfan_loopstart jnz
 
 	( clean up stacks before returning )
 	popS popS
@@ -413,40 +413,40 @@ jmpSR
 @linetest
 
 	( to xS yS )
-	#0000 #0000 #@hfan jsrS		( top left )
-	#0000 #0000 #@vfan jsrS		( top left )
-	#0000 #01DF #@hfan jsrS		( top right )
-	#027F #0000 #@vfan jsrS		( top right )
+	#0000 #0000 ;hfan jsrS		( top left )
+	#0000 #0000 ;vfan jsrS		( top left )
+	#0000 #01DF ;hfan jsrS		( top right )
+	#027F #0000 ;vfan jsrS		( top right )
 jmpSR
 	( p: x1S y1S r: x0S y0S )
 
 ( calling this repeatedly whilst moving the mouse causes a -1 y value that crashes the emu )
 @dugo ( -- )
 	( print character 68 to stdout )
-	#68 _@console/write bso
+	#68 _console/write bso
 	( @dugo_top )
-	 ( #0140 #00F0 #0140 #00F3 #02 #@line jsrS )
-	 ( #0140 #00F0 #0140 #00EF #02 #@line jsrS )
-	( $@dugo_top jmp )
-	( #0101 #0000 #0140 #00F0 #02 #@line jsrS )
+	 ( #0140 #00F0 #0140 #00F3 #02 ;line jsrS )
+	 ( #0140 #00F0 #0140 #00EF #02 ;line jsrS )
+	( $dugo_top jmp )
+	( #0101 #0000 #0140 #00F0 #02 ;line jsrS )
 (
-	  #0005 #0003 #00F7 #00F6 #02 #@line jsrS 
-	  #0002 #0003 #0002 #0030 #02 #@line jsrS 
-	  #0002 #0003 #0002 #000F #02 #@line jsrS 
+	  #0005 #0003 #00F7 #00F6 #02 ;line jsrS 
+	  #0002 #0003 #0002 #0030 #02 ;line jsrS 
+	  #0002 #0003 #0002 #000F #02 ;line jsrS 
 )
-	#@linetest jsrS 
+	;linetest jsrS 
 jmpSR
 
 ( always subtract the smaller from the bigger )
 @deltax ( x0S x1S -- dxS )
-	2dupS swpS lstS $@deltax_skipswap jnz
+	2dupS swpS lstS $deltax_skipswap jnz
 	swpS
 	@deltax_skipswap
 	subS
 jmpSR
 
 @deltay ( y0S y1S -- dyS )
-	swpS 2dupS lstS $@deltay_skipswap jnz
+	swpS 2dupS lstS $deltay_skipswap jnz
 	swpS
 	@deltay_skipswap
 	subS
@@ -454,7 +454,7 @@ jmpSR
 
 ( a < b ? 1 : -1 )
 @direction	( aS bS -- rS )
-	<?S $@nless_retone jnz
+	<?S $nless_retone jnz
 	#FFFF jmpSR
 	@nless_retone #0001
 jmpSR
@@ -462,31 +462,31 @@ jmpSR
 ( Bresenham line drawing algorithm )
 @line ( x0S y0S x1S y1S c -- ) 
 	
-	#@line_col sta						( move pixel color to local variable )
+	;line_col sta						( move pixel color to local variable )
 
 	( copy source and destination coords to local variables )
-	#@line_y1 staS #@line_x1 staS #@line_y0 staS #@line_x0 staS	
+	;line_y1 staS ;line_x1 staS ;line_y0 staS ;line_x0 staS	
 
 																				( p: / r: ... )
-	#@line_x0 ldaS #@line_x1 ldaS 
+	;line_x0 ldaS ;line_x1 ldaS 
 																				( p: line_x0S line_x1S / r: ... )
 	( sx = x0 < x1 ? 1 : -1 )
 	2dupS								( dupe x0 and x1 for direction and deltax )
 																				( p: line_x0S line_x1S line_x0S line_x1S / r: ... ) 
-	#@direction jsrS #@line_sx staS 	( calculate direction for x )
+	;direction jsrS ;line_sx staS 	( calculate direction for x )
 																				( p: line_x0S line_x1S / r: ... ) 
-	$@deltax jsr						( calculate delta x )
+	$deltax jsr						( calculate delta x )
 																				( p: dxS / r: ... ) 
 	( load y0 and y1 )
-	#@line_y0 ldaS #@line_y1 ldaS 
+	;line_y0 ldaS ;line_y1 ldaS 
 																				( p: dxS line_y0S line_y1S / r: ... ) 
 	( sy = y0 < y1 ? 1 : -1 )
 	2dupS 
 																				( p: dxS line_y0S line_y1S line_y0S line_y1S / r: ... ) 
-	#@direction jsrS #@line_sy staS
+	;direction jsrS ;line_sy staS
 																				( p: dxS line_y0S line_y1S / r: ... ) 
 	( calculate delta y )
-	$@deltay jsr
+	$deltay jsr
 																				( p: dxS dyS / r: ... ) 
 	2dupS								( dupe dx and dy for err and for storing ) 
 																				( p: dxS dyS / r: ... ) 
@@ -494,13 +494,13 @@ jmpSR
 																				( p: dxS dyS errS / r: ... ) 
 	swpS  
 																				( p: dxS errS dyS / r: ... ) 
-	#@line_dy staS
+	;line_dy staS
 																				( p: dxS errS / r: ... ) 
 	swpS
 																				( p: errS dxS / r: ... ) 
-	#@line_dx staS	
+	;line_dx staS	
 																				( p: errS / r: ... ) 
-	#@line_col lda #@line_x0 ldaS #@line_y0 ldaS
+	;line_col lda ;line_x0 ldaS ;line_y0 ldaS
 																				( p: errS line_col line_x0S line_y0S / r: .. ) 
 	( stsSC stsSC ) 	( copy y and x to rStack ) ( copy opcodes are not safe when interrupts can intercede between calls )
 	2dupS stsS stsS ( copy y and x to rStack )
@@ -514,17 +514,17 @@ jmpSR
 		dupSR popSR ( debug fix )
 		stsSRC 
 																				( p: errS line_x0S / r: .. line_y0S line_x0S ) 
-		#@line_x1 ldaS 
+		;line_x1 ldaS 
 																				( p: errS line_x0S line_x1S / r: .. line_y0S line_x0S ) 
 		equS 							( compare cur x with the dst x )
 																				( p: errS bool / r: .. line_y0S line_x0S ) 
 		ovrSR stsSR						( move a copy of dst y from rStack to pStack )	
 																				( p: errS bool line_y0S / r: .. line_y0S line_x0S ) 
-		#@line_y1 ldaS 
+		;line_y1 ldaS 
 																				( p: errS bool line_y0S line_y1S / r: .. line_y0S line_x0S ) 
 		equS 
 																				( p: errS bool bool / r: .. line_y0S line_x0S ) 
-		and $@line_end jnz				( end if cur y = dst y and cur x = dst x )
+		and $line_end jnz				( end if cur y = dst y and cur x = dst x )
 																				( p: errS / r: .. line_y0S line_x0S ) 
 		dupS 
 																				( p: errS errS / r: .. line_y0S line_x0S ) 
@@ -532,19 +532,19 @@ jmpSR
 																				( p: errS err2S / r: .. line_y0S line_x0S ) 
 ( step x )
 		( if err2 >= dy then increment )
-		$@line_dy ldrS 2dupS 
+		$line_dy ldrS 2dupS 
 																				( p: errS err2S line_dyS err2S line_dyS / r: .. line_y0S line_x0S ) 
-		<?S $@line_skip_x jnz
+		<?S $line_skip_x jnz
 																				( p: errS err2S line_dyS / r: .. line_y0S line_x0S ) 
 		rotS addS 						( err += dy )	
 																				( p: err2S errS / r: .. line_y0S line_x0S ) 
-		stsSR $@line_sx ldrS 
+		stsSR $line_sx ldrS 
 																				( p: err2S errS line_x0S line_sxS / r: .. line_y0S ) 
 		addS							( x += sx )	
 																				( p: err2S errS line_x0S / r: .. line_y0S ) 
 		stsS ( put x back on rStack for next iter )
 																				( p: err2S errS / r: .. line_y0S line_x0S ) 
-		$@line_ystep jmp
+		$line_ystep jmp
 
 		@line_skip_x
 																				( p: errS err2S line_dyS / r: .. line_y0S line_x0S ) 
@@ -555,18 +555,18 @@ jmpSR
 		@line_ystep
 		( swpS ) 
 																				( p: err2S errS / r: .. line_y0S line_x0S ) 
-		$@line_dx ldrS
+		$line_dx ldrS
 																				( p: err2S errS line_dxS / r: .. line_y0S line_x0S ) 
 		rotS ovrS 
 																				( p: errS line_dxS err2S line_dxS / r: .. line_y0S line_x0S ) 
 		( step y )
-		>?S $@line_skip_y jnz 	( if err2 > dx skip y increment )
+		>?S $line_skip_y jnz 	( if err2 > dx skip y increment )
 																				( p: errS line_dxS / r: .. line_y0S line_x0S ) 
 		addS ( err += dx )
 																				( p: errS / r: .. line_y0S line_x0S ) 
 		swpSR stsSR 
 																				( p: errS line_y0S / r: .. line_x0S ) 
-		#@line_sy ldaS 
+		;line_sy ldaS 
 		addS		( y += sy )
 		( if sy is -1 then eventually so will y become -1 )
 																				( p: errS line_y0S / r: .. line_x0S ) 
@@ -574,7 +574,7 @@ jmpSR
 																				( p: errS / r: .. line_x0S line_y0S ) 
 		swpSR					( swap line_y0S line_x0 on rStack ) 
 																				( p: errS / r: .. line_y0S line_x0S ) 
-		$@line_loopend jmp
+		$line_loopend jmp
 		@line_skip_y 
 																				( p: errS line_dxS / r: .. line_y0S line_x0S ) 
 		popS  					( pop unused dx )
@@ -583,7 +583,7 @@ jmpSR
 		( swpSR	) 				( swap line_y0S line_x0 on rStack ) 
 		@line_loopend
 
-		#@line_col lda 
+		;line_col lda 
 																				( p: row col errS line_col / r: .. line_y0S line_x0S ) 
 		
 ( stsSRC ) ( Wrong assumption here - two subsequent copy calls do not move down the stack but return the same end value each time ! )
@@ -591,7 +591,7 @@ jmpSR
 ( stsSRC ) ( copy opcodes are not safe when interrupts can intercede between calls )
 stsSR stsSR 2dupS stsS stsS
 																				( p: row col errS line_col line_x0S line_y0S / r: .. line_y0S line_x0S ) 
-		#@line_loop jmpS
+		;line_loop jmpS
 
 	@line_end
 	popS		( remove the errS )
