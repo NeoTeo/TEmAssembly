@@ -87,49 +87,49 @@ jmpSR
 @handle_keybuf ( row col -- )
 
 		( check the keybuf_count being > 0 ) 
-		;keybuf_count lda #0 equ ;handle_keybuf_skip jnzS
+		;keybuf_count lda #0 equ ;.skip jnzS
 
 		;pop_keybuf jsrS
 		
-		dup #7F equ $handle_keybuf_doctrl jnz					( check for delete character )
-		dup #20 lst $handle_keybuf_doctrl jnz					( check for other control characters )
+		dup #7F equ $.doctrl jnz					( check for delete character )
+		dup #20 lst $.doctrl jnz					( check for other control characters )
 
 		sts dupS stsR											( duplicate the row and col behind char )
 		;drawchar jsrS 
 		
 		#1 ;advancecursor jsrS									( increment the columns and rows as characters are printed. )
 
-		;handle_keybuf_skip jmpS
+		jmpSR	
 
 		( handle control characters )
-		@handle_keybuf_doctrl
+		.doctrl
 
-		dup #7F neq $handle_keybuf_skip_delete jnz
+		dup #7F neq $.skip_delete jnz
 		pop ( remove extra unneeded char copy )
 		( move back and draw a space )	
 
 		#FF ;advancecursor jsrS
 
 		dupS #20 ;drawchar jsrS
-		$handle_keybuf_skip jmp
+		jmpSR	
 
-		@handle_keybuf_skip_delete
+		.skip_delete
 		
-		dup #0D neq $handle_keybuf_skip_enter jnz
+		dup #0D neq $.skip_enter jnz
 		pop ( remove extra unneeded char copy )
 		( set col to end and advance, which causes it to move to the next line. )
 		pop #4F 
 		#1 $advancecursor jsr
-		$handle_keybuf_skip jmp
+		jmpSR	
 
-		@handle_keybuf_skip_enter
+		.skip_enter
 
-		#1B neq $handle_keybuf_skip_esc jnz
+		#1B neq $.skip_esc jnz
 
 		;dugo jsrS
-		@handle_keybuf_skip_esc 
+		.skip_esc 
 
-		@handle_keybuf_skip
+		.skip
 jmpSR
 
 ( Absolute value of short on stack - interpreted as signed - by two's complement ) 
