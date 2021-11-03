@@ -59,68 +59,78 @@
 	#0000	( row and col inited )
 	( infinite loop )
 	@main_toploop
+	
+		#@handle_mousebuf jsrS
 
-		#@cposbuf_count lda #0 equ #@main_cposbuf_end jnzS
-		#@pop_cposbuf jsrS 
-		2dupS		
-		#@pointer_draw jsrS 
-		lmbdown #0 equ $@main_toploop_skip_linedraw jnz
-			2dupS
-			#@cline jsrS 
-		@main_toploop_skip_linedraw 
-		#@cposbuf_prevposy staS	#@cposbuf_prevposx staS	
-		@main_cposbuf_end
+		#@handle_keybuf jsrS
+
+	#@main_toploop jmpS
+	brk
+
+@handle_mousebuf ( -- )
+	#@cposbuf_count lda #0 equ #@handle_mousebuf_cposbuf_end jnzS
+	#@pop_cposbuf jsrS 
+
+	2dupS #@pointer_draw jsrS 
+
+	lmbdown #0 equ $@handle_mousebuf_skip_linedraw jnz
+
+	2dupS #@cline jsrS 
+
+	@handle_mousebuf_skip_linedraw 
+
+	#@cposbuf_prevposy staS	#@cposbuf_prevposx staS	
+	@handle_mousebuf_cposbuf_end
+jmpSR
 
 
-( NB move all key handling into separate function )
+@handle_keybuf ( row col -- )
 
 		( check the keybuf_count being > 0 ) 
-		#@keybuf_count lda #0 equ #@main_skip_keybuf jnzS
-( p: row col )	
+		#@keybuf_count lda #0 equ #@handle_keybuf_skip jnzS
+
 		#@pop_keybuf jsrS
 		
-		dup #7F equ $@main_doctrl jnz					( check for delete character )
-		dup #20 lst $@main_doctrl jnz					( check for other control characters )
+		dup #7F equ $@handle_keybuf_doctrl jnz					( check for delete character )
+		dup #20 lst $@handle_keybuf_doctrl jnz					( check for other control characters )
 
-		sts dupS stsR									( duplicate the row and col behind char )
+		sts dupS stsR											( duplicate the row and col behind char )
 		#@drawchar jsrS 
 		
-		#1 #@advancecursor jsrS							( increment the columns and rows as characters are printed. )
+		#1 #@advancecursor jsrS									( increment the columns and rows as characters are printed. )
 
-		#@main_skip_keybuf jmpS
+		#@handle_keybuf_skip jmpS
 
 		( handle control characters )
-		@main_doctrl
+		@handle_keybuf_doctrl
 
-		dup #7F neq $@main_skip_delete jnz
+		dup #7F neq $@handle_keybuf_skip_delete jnz
 		pop ( remove extra unneeded char copy )
 		( move back and draw a space )	
 
 		#FF #@advancecursor jsrS
 
 		dupS #20 #@drawchar jsrS
-		$@main_skip_keybuf jmp
+		$@handle_keybuf_skip jmp
 
-		@main_skip_delete
+		@handle_keybuf_skip_delete
 		
-		dup #0D neq $@main_skip_enter jnz
+		dup #0D neq $@handle_keybuf_skip_enter jnz
 		pop ( remove extra unneeded char copy )
 		( set col to end and advance, which causes it to move to the next line. )
 		pop #4F 
 		#1 $@advancecursor jsr
-		$@main_skip_keybuf jmp
+		$@handle_keybuf_skip jmp
 
-		@main_skip_enter
+		@handle_keybuf_skip_enter
 
-		#1B neq $@main_skip_esc jnz
+		#1B neq $@handle_keybuf_skip_esc jnz
 
 		#@dugo jsrS
-		@main_skip_esc 
+		@handle_keybuf_skip_esc 
 
-		@main_skip_keybuf
-
-	#@main_toploop jmpS
-	brk
+		@handle_keybuf_skip
+jmpSR
 
 ( Absolute value of short on stack - interpreted as signed - by two's complement ) 
 @absS ( valS -- absvalS )
