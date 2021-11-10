@@ -426,9 +426,10 @@ jmpSR
 
 ( always subtract the smaller from the bigger )
 @deltax ( x0S x1S -- dxS )
-	2dupS swpS lstS $.skipswap jnz
+	( use the return value of the lstS as a relative offset for the jmp )
+	2dupS swpS lstS jmp ( $.skipswap jnz )
 	swpS
-	.skipswap
+	( .skipswap )
 	subS
 jmpSR
 
