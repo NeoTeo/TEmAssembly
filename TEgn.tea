@@ -27,7 +27,7 @@
 %>= { lst #0 equ } 
 
 ( a less-than that interprets values as signed )
-%<?S { subS #8000 andS #8000 equS }
+%<?S { subS isnegS }
 
 ( a greater-than that interprets values as signed )
 %>?S { subS #0001 <?S #0 equ }
@@ -41,7 +41,8 @@
 
 %setpixel { _screen/yposition bsoS _screen/xposition bsoS _screen/clut bso } ( col xS yS -- )
 
-%fontoffset { #0 swp ( turn byte into short ) #30 shiS }
+( turn a byte into a short )
+%intoS { #0 swp }
 
 %lmbdown { _mouse/bstate bsi #10 and #10 equ }
 
@@ -158,17 +159,11 @@ jmpSR
 
 ( leave smallest of the two values on stack )
 @minS ( aS bS -- rS )
-	2dupS <?S $.skipswap jnz
-	swpS
-	.skipswap 
-	popS
+	2dupS <?S jmp swpS popS
 jmpSR
 
 @maxS ( aS bS -- rS )
-	2dupS <?S #0 equ $.skipswap jnz
-	swpS
-	.skipswap 
-	popS
+	2dupS <?S #0 equ jmp swpS popS
 jmpSR
 
 @drawpointer ( xposS yposS -- )
@@ -196,13 +191,16 @@ jmpSR
 	#41 _screen/dma bso			( start dma transfer of 64 bits to fg: bit 1, to foreground layer: bit 7 )
 jmpSR
 
+@fontoffset ( a -- bS )
+	intoS #30 shiS jmpSR
+ 
 @drawchar ( row col char -- )
 	rot rot
 	rowcoltoxy
 	_screen/yposition bsoS
 	_screen/xposition bsoS
 
-	fontoffset ;font/monomini addS
+	;fontoffset jsrS ;font/monomini addS
 	_screen/addr bsoS
 
 	#1 _screen/dma bso		( start dma transfer of 64 bits from addr )
@@ -427,17 +425,11 @@ jmpSR
 ( always subtract the smaller from the bigger )
 @deltax ( x0S x1S -- dxS )
 	( use the return value of the lstS as a relative offset for the jmp )
-	2dupS swpS lstS jmp ( $.skipswap jnz )
-	swpS
-	( .skipswap )
-	subS
+	2dupS swpS lstS jmp swpS subS
 jmpSR
 
 @deltay ( y0S y1S -- dyS )
-	swpS 2dupS lstS $.skipswap jnz
-	swpS
-	.skipswap
-	subS
+	swpS 2dupS lstS jmp swpS subS
 jmpSR
 
 ( a < b ? 1 : -1 )
@@ -540,7 +532,6 @@ jmpSR
 		swpS 
 																				( p: err2S errS / r: .. line_y0S line_x0S ) 
 		.ystep
-		( swpS ) 
 																				( p: err2S errS / r: .. line_y0S line_x0S ) 
 		$line_dx ldrS
 																				( p: err2S errS line_dxS / r: .. line_y0S line_x0S ) 
@@ -567,7 +558,6 @@ jmpSR
 		popS  					( pop unused dx )
 																				( p: errS / r: .. line_y0S line_x0S ) 
 
-		( swpSR	) 				( swap line_y0S line_x0 on rStack ) 
 		.loopend
 
 		;line_col lda 
