@@ -50,6 +50,12 @@
 ( screen resolution is 640x480. Each cell in grid is 8x8. So x is 8*col and y is 8*row )
 %rowcoltoxy { #0 #0 prezip #30 shiS swpS  #30 shiS } ( col row -- x y ) ( bb -- ss )
 
+( leave smallest of the two signed short values on stack )
+%minS { 2dupS <?S jmp swpS popS } 	( aS bS -- rS )
+
+( leave largest of the two signed short values on stack )
+%maxS { 2dupS <?S #0 equ jmp swpS popS } ( aS bS -- rS )
+
 ( start of executable code )
 ^100 
 
@@ -157,20 +163,11 @@ jmpSR
 	.norm swp	pop #0
 jmpSR
 
-( leave smallest of the two values on stack )
-@minS ( aS bS -- rS )
-	2dupS <?S jmp swpS popS
-jmpSR
-
-@maxS ( aS bS -- rS )
-	2dupS <?S #0 equ jmp swpS popS
-jmpSR
-
 @drawpointer ( xposS yposS -- )
 	swpS
-	#0000 ;maxS jsrS
+	#0000 maxS 
 	swpS
-	#0000 ;maxS jsrS
+	#0000 maxS
 
 	;pointer/x ldaS
 	;pointer/y ldaS
